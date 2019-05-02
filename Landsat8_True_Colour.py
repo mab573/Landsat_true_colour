@@ -95,7 +95,8 @@ def usage ():
 	print '	     (bands 4,3,2 and 8 or red, green, blue and panchromatic). If you do not have MODTRAN5 installed'
 	print '	     on your system then just ignore this option. If you do you will need to alter the code so that'
 	print '	     VIR_SRF, tape5_dir, data_dir and MOD_exe point to the correct places. This is the responsibility'
-	print '	     of the user.\n' 
+	print '	     of the user.\n'
+        print '-p -- Set this and the images will be pan sharpened to 15 m resolution pixels, otherwise do at the native resolution\n' 
 	print '-b [a number] -- Enter a number to control how much the image is brightened. This is done for the output'
 	print '			image and will depend on the range of values in the image so a full swath and a subset'
 	print '			will likely scale differently. The impact of the scaling factor will also change depending'
@@ -130,7 +131,7 @@ def usage ():
 	
 
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "hz:cs:b:tklf:r", ["help", "zip_file","AC","subset","bright","trans","keep","logo","format","Rrs"])
+	opts, args = getopt.getopt(sys.argv[1:], "hz:cps:b:tklf:r", ["help", "zip_file","AC","pan","subset","bright","trans","keep","logo","format","Rrs"])
 
 except getopt.GetoptError, err:
         # print help information and exit:
@@ -148,6 +149,8 @@ for o, a in opts:
             zip_file = a
 	elif o in ("-c", "--AC"):
             AC = a
+        elif o in ("-p", "--pan"):
+            pan = a
         elif o in ("-s", "--subset"):
             subset = a
 	elif o in ("-b", "--bright"):
@@ -644,6 +647,20 @@ else:
 # Band4 6,7
 # etc but the order is band 1 - 9 but the spectral ranges are not consecutive
 
+try:
+  pan
+except NameError:
+
+  ### No need to call MODTRAN, so dont.
+  print '\n\n\n Pan sharpening the image. \n\n\n'
+
+  do_pan=1
+
+else:
+
+  do_pan=0
+  print '\n\n\n Not pan sharpening the images. \n\n\n'
+
 
 try:
   Rrs
@@ -700,10 +717,9 @@ SA_sub_B8=path+'SOLAR-AZIMUTH_sub_B8.TIF'
 
 if do_sub == 1:
 
-	print 'Subsetting the scene with upper left geographic coordinates',ulat,ulon,' UTM ',ul_E,ul_N
-	print 'and low right geographic coordinates ',llat,llon,' UTM ',lr_E,lr_N,' with brightening factor ',bright,'\n\n\n'
-
-	#os.system('gdal_translate  -a_ullr %s %s %s %s -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B1,LS_B1_sub))
+    if do_pan ==1:
+        print 'Subsetting the scene with upper left geographic coordinates',ulat,ulon,' UTM ',ul_E,ul_N
+        print 'and low right geographic coordinates ',llat,llon,' UTM ',lr_E,lr_N,' with brightening factor ',bright,'\n\n\n'
 
         os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B1,LS_B1_sub))
         os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B2,LS_B2_sub))
@@ -713,61 +729,57 @@ if do_sub == 1:
         os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B6,LS_B6_sub))
         os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B7,LS_B7_sub))
         os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B8,LS_B8_sub))
-        #os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B8,LS_B8_sub)) 
         os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B9,LS_B9_sub))
         os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B10,LS_B10_sub))
         os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B11,LS_B11_sub))
 
         ## ADD subsetting of the VZA, SZA, VA and SA and use this to generate RTC raster of the correct size
-        #os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, VZA,VZA_sub))
-        #os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, SZA,SZA_sub))
-        #os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, VA,VA_sub))
-        #os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, SA,SA_sub))
         os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, VZA,VZA_sub_B8))
         os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, SZA,SZA_sub_B8))
         os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, VA,VA_sub_B8))
         os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, SA,SA_sub_B8))
 
-        '''
-        os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B1,LS_B1_sub))
-	os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B2,LS_B2_sub))
-	os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B3,LS_B3_sub))
-	os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B4,LS_B4_sub))
-	os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B5,LS_B5_sub))
-	os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B6,LS_B6_sub))
-	os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B7,LS_B7_sub))
-	os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B8,LS_B8_sub))
-	os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B9,LS_B9_sub))
-	os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B10,LS_B10_sub))
-	os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, LS_B11,LS_B11_sub))
-
+    else:
+        print 'Subsetting the scene with upper left geographic coordinates',ulat,ulon,' UTM ',ul_E,ul_N
+        print 'and low right geographic coordinates ',llat,llon,' UTM ',lr_E,lr_N,' with brightening factor ',bright,'\n\n\n'
+ 
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B1,LS_B1_sub))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B2,LS_B2_sub))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B3,LS_B3_sub))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B4,LS_B4_sub))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B5,LS_B5_sub))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B6,LS_B6_sub))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B7,LS_B7_sub))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B8,LS_B8_sub))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B9,LS_B9_sub))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B10,LS_B10_sub))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B11,LS_B11_sub))
+ 
         ## ADD subsetting of the VZA, SZA, VA and SA and use this to generate RTC raster of the correct size
-        os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, VZA,VZA_sub))
-        os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, SZA,SZA_sub))
-        os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, VA,VA_sub))
-        os.system('gdal_translate  -a_ullr %s %s %s %s -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, ul_E, ul_N, lr_E, lr_N, SA,SA_sub))
-        '''
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, VZA,VZA_sub_B8))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, SZA,SZA_sub_B8))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, VA,VA_sub_B8))
+        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, SA,SA_sub_B8))
+
 
 else:
+    LS_B1_sub=LS_B1
+    LS_B2_sub=LS_B2
+    LS_B3_sub=LS_B3
+    LS_B4_sub=LS_B4
+    LS_B5_sub=LS_B5
+    LS_B6_sub=LS_B6
+    LS_B7_sub=LS_B7
+    LS_B8_sub=LS_B8
+    LS_B9_sub=LS_B9
+    LS_B10_sub=LS_B10
+    LS_B11_sub=LS_B11
 
-	LS_B1_sub=LS_B1
-	LS_B2_sub=LS_B2
-	LS_B3_sub=LS_B3
-	LS_B4_sub=LS_B4
-	LS_B5_sub=LS_B5
-	LS_B6_sub=LS_B6
-	LS_B7_sub=LS_B7
-	LS_B8_sub=LS_B8
-	LS_B9_sub=LS_B9
-	LS_B10_sub=LS_B10
-	LS_B11_sub=LS_B11
-
-        VZA_sub=VZA
-        SZA_sub=SZA
-        VA_sub=VA
-        SA_sub=SA 
-
-        ## If you want to do this full scene, you would still need to generate VZA etc at 15 m for band 8 RTC generation
+    VZA_sub=VZA
+    SZA_sub=SZA
+    VA_sub=VA
+    SA_sub=SA 
+    ## If you want to do this full scene, you would still need to generate VZA etc at 15 m for band 8 RTC generation
 
 ############ Generate RTC interpolated Raster files ############
 
@@ -1079,7 +1091,8 @@ rad_arr=(ary[:].astype(float)*rad_scale[7])+rad_offset[7]
 
 if do_AC==1:
 
-	print 'Atmospherically compensating for band 8....\n\n'
+    if do_pan==1:
+        print 'Atmospherically compensating for band 8....\n\n'
 
         ## This is a hack but the band8 rad array is always a different shape to the
         ## RTC arrays. Need to pad in one direction and take in the other
@@ -1090,15 +1103,13 @@ if do_AC==1:
 
         #print rad_arr.shape
 
-	rho=Landsat8_atmospheric_correction.Landsat_ATCOR(rad_arr, 8, RTC_dir)
-	rho_out_b8 = np.empty((rho.shape),dtype=int)
-	np.clip(rho,0, max_refl, out=rho_out_b8)
+        rho=Landsat8_atmospheric_correction.Landsat_ATCOR(rad_arr, 8, RTC_dir)
+        rho_out_b8 = np.empty((rho.shape),dtype=int)
+        np.clip(rho,0, max_refl, out=rho_out_b8)
 
 else:
 
-        #rad_arr=np.pad(rad_arr,((0,0),(0,1)),'edge')
-        #rad_arr=rad_arr[0:-1,:]
-	rho_out_b8=rad_arr
+    rho_out_b8=rad_arr
 
 ## Set file vars
 #output_file_B8 = out_dir+basename+'_B8_SAC.TIF'
@@ -1121,9 +1132,15 @@ else:
 
 ############# Pan sharpen using Brovey (or something like it) transform
 
-print 'Performing pan sharpening using simple Brovey transform\n\n'
+if do_pan ==1:
+    print 'Performing pan sharpening using simple Brovey transform\n\n'
 
-pan_sharp_blue, pan_sharp_green, pan_sharp_red=pan.Simple_Pan_Sharpen(rho_out_b2, rho_out_b3, rho_out_b4, rho_out_b8)
+    pan_sharp_blue, pan_sharp_green, pan_sharp_red=pan.Simple_Pan_Sharpen(rho_out_b2, rho_out_b3, rho_out_b4, rho_out_b8)
+
+else:
+    pan_sharp_blue=rho_out_b2
+    pan_sharp_green=rho_out_b3
+    pan_sharp_red=rho_out_b4
 
 ## This saves the pan sharpened rasters to a file. The GEOTIFF format from the PAN band (band 8) is used to create
 ## the file and the 3 raster bands written into the new file. 
@@ -1185,7 +1202,8 @@ if do_AC==1:
 	print 'Now Scaling red band....\n\n\n'
         #ary_scaled=log_bright(pan_sharp_red)
         # Another , probably better, way to brighten images
-        red = gamma(np.clip(pan_sharp_red/np.max(pan_sharp_red)*255.0, 0,255), im_gamma_red)
+        red = gamma(np.clip(pan_sharp_red.astype(float)/np.max(pan_sharp_red.astype(float))*255.0, 0,255), im_gamma_red)
+        
         #red=ary_scaled/np.max(ary_scaled)*255.0
         jr=Image.fromarray(red.astype(np.uint8),mode='L')
         jr.save(out_dir+'/Landsat_red.bmp')
@@ -1195,7 +1213,7 @@ if do_AC==1:
         #ary_scaled=log_bright(pan_sharp_green)
         #green=ary_scaled/np.max(ary_scaled)*255.0
         # Another , probably better, way to brighten images
-        green = gamma(np.clip(pan_sharp_green/np.max(pan_sharp_green)*255.0,0,255), im_gamma_green)
+        green = gamma(np.clip(pan_sharp_green.astype(float)/np.max(pan_sharp_green.astype(float))*255.0,0,255), im_gamma_green)
         jg=Image.fromarray(green.astype(np.uint8),mode='L')
         jg.save(out_dir+'/Landsat_green.bmp')
         #dst_ds.GetRasterBand(2).WriteArray(green.astype(byte))
@@ -1204,7 +1222,7 @@ if do_AC==1:
         #ary_scaled=log_bright(pan_sharp_blue)
         #blue=ary_scaled/np.max(ary_scaled)*255.0
         # Another , probably better, way to brighten images
-        blue = gamma(np.clip(pan_sharp_blue/np.max(pan_sharp_blue)*255.0, 0,255), im_gamma_blue)
+        blue = gamma(np.clip(pan_sharp_blue.astype(float)/np.max(pan_sharp_blue.astype(float))*255.0, 0,255), im_gamma_blue)
         jb=Image.fromarray(blue.astype(np.uint8),mode='L')
         jb.save(out_dir+'/Landsat_blue.bmp')
         #dst_ds.GetRasterBand(3).WriteArray(blue.astype(byte))
