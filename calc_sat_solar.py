@@ -1,5 +1,10 @@
 #!/usr/bin/env python 
 
+import rasterio 
+from rasterio.warp import transform_bounds
+from rasterio.crs import CRS
+from affine import Affine
+
 import os
 from os.path import join as pjoin, basename, dirname 
 import h5py
@@ -10,12 +15,38 @@ from wagl.satellite_solar_angles import calculate_angles
 from wagl.acquisition import acquisitions
 from wagl.geobox import GriddedGeoBox 
 from wagl.data import write_img 
+import pyproj
+from osgeo import gdal 
+from osgeo import gdalconst
+import fnmatch
+import tarfile 
+import logging 
+
+_log = logging.getLogger(__name__)
 
 
 SAT_SOLAR_BANDS = ['SATELLITE-VIEW', 'SATELLITE-AZIMUTH', 'SOLAR-ZENITH', 'SOLAR-AZIMUTH']
+LANDSAT_BANDS = ['B{}'.format(i) for i in range(1,12)]
 
 
-def calc_lat_lon_grids(level1, out_dir, tle_path='/g/data/v10/eoancillarydata/sensor-specific', acq_parser_hint=''):
+def unpack(tar_file, out_dir): 
+    """
+    Unpacks the tar or tar gz  file 
+    """
+    if tar_file.endswith("tar.gz"): 
+        
+        with tarfile.open(tar_file, "r:gz") as tar:
+            if out_dir:
+                return tar.extractall(out_dir)
+            return tar.extractall()
+
+    with  tarfile.open(tar_file, "r:") as tar:
+        if out_dir:
+            return tar.extractall(out_dir)
+        return tar.extractall()
+
+
+def write_sat_solar(level1, out_dir, tle_path='/g/data/v10/eoancillarydata/sensor-specific', acq_parser_hint=''):
     """
     This function will compute satellite solar (view and azimuth) angles using level 1 dataset.
     """
@@ -43,9 +74,79 @@ def calc_lat_lon_grids(level1, out_dir, tle_path='/g/data/v10/eoancillarydata/se
                 write_img(dset, out_name, geobox=geo_box, nodata=dset.attrs.get('no_data_value'))
 
 
-if __name__ == '__main__': 
+def subset_img(filename, subset_coords=None):
+    with rasterio.open(filename) as raster:
+        if subset_coords is None:
+            return raster.read(1)
 
+        ul_lat, ul_lon, lr_lat, lr_lon = subset_coords
+
+        wgs = CRS.from_epsg(4326)
+
+        left, bottom, right, top = transform_bounds(wgs, raster.crs,
+                                                    ul_lon, lr_lat, lr_lon, ul_lat)
+
+        geotransform = Affine.from_gdal(*raster.get_transform())
+        print(geotransform)
+        exit()
+        start = ~geotransform * (left, top)
+        finish = ~geotransform * (right, bottom)
+
+        start = [int(x) for x in reversed(start)]
+        finish = [int(x) for x in reversed(finish)]
+
+        print('raster shape: ', raster.shape)
+        print('start before clipping', start)
+        print('finish before clipping', finish)
+        if start[0] < 0:
+            start[0] = 0
+        if start[1] < 0:
+            start[1] = 0
+        if finish[0] > raster.shape[0]:
+            finish[0] = raster.shape[0]
+        if finish[1] > raster.shape[1]:
+            finish[1] = raster.shape[1]
+
+        print('start after clipping', start)
+        print('finish after clipping', finish)
+        
+
+        return raster.read(1, window=((start[0], finish[0]), (start[1], finish[1])))
+
+
+def main(leve1, out_dir, subset_coords=None, Bands=None): 
+    # write_sat_solar(leve1, out_dir)
+    
+    # unpack(level1, out_dir)
+    
+    if Bands: 
+        bands = Bands 
+    else: 
+        bands = LANDSAT_BANDS
+    
+    tiff_files = [f for f in os.listdir(out_dir)]
+
+    for band in bands + SAT_SOLAR_BANDS: 
+        try:
+            print(band)
+            tiff_file = fnmatch.filter(tiff_files, '*{}.TIF'.format(band))[0]
+            subset_img(pjoin(out_dir, tiff_file), subset_coords)
+        except IndexError: 
+            pass 
+        
+
+
+
+if __name__ == '__main__':
+    Bands = ['B2', 'B3', 'B4', 'B8']
+    subset_coords = (-35.5, 144.0, -37.0, 145.0)
     level1 = '/g/data/da82/AODH/USGS/L1/Landsat/C1/093_085/LC80930852019051/LC08_L1TP_093085_20190220_20190222_01_T1.tar'
     out_dir = '/g/data/u46/users/pd1813/Landsat_true_colour/test'
-    calc_lat_lon_grids(level1, out_dir)
+    
+    main(level1, out_dir, subset_coords, Bands)
+
+
+
+
+
 
