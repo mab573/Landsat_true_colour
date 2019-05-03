@@ -1,7 +1,9 @@
 #!/usr/bin/env python 
 
+import numpy as np
+
 import rasterio 
-from rasterio.warp import transform_bounds
+from rasterio.warp import transform_bounds, reproject, Resampling
 from rasterio.crs import CRS
 from affine import Affine
 
@@ -74,44 +76,71 @@ def write_sat_solar(level1, out_dir, tle_path='/g/data/v10/eoancillarydata/senso
                 write_img(dset, out_name, geobox=geo_box, nodata=dset.attrs.get('no_data_value'))
 
 
-def subset_img(filename, subset_coords=None):
+def subset_img(filename, subset_coords=None, down_sample_factor=None):
     with rasterio.open(filename) as raster:
         if subset_coords is None:
-            return raster.read(1)
+            data = raster.read(1)
+            affine = raster.transform
 
-        ul_lat, ul_lon, lr_lat, lr_lon = subset_coords
+        else:
+            ul_lat, ul_lon, lr_lat, lr_lon = subset_coords
 
-        wgs = CRS.from_epsg(4326)
+            wgs = CRS.from_epsg(4326)
 
-        left, bottom, right, top = transform_bounds(wgs, raster.crs,
-                                                    ul_lon, lr_lat, lr_lon, ul_lat)
+            left, bottom, right, top = transform_bounds(wgs, raster.crs,
+                                                        ul_lon, lr_lat, lr_lon, ul_lat)
 
-        geotransform = Affine.from_gdal(*raster.get_transform())
-        print(geotransform)
-        exit()
-        start = ~geotransform * (left, top)
-        finish = ~geotransform * (right, bottom)
+            start = ~raster.transform * (left, top)
+            finish = ~raster.transform * (right, bottom)
 
-        start = [int(x) for x in reversed(start)]
-        finish = [int(x) for x in reversed(finish)]
+            start = [int(x) for x in reversed(start)]
+            finish = [int(x) for x in reversed(finish)]
 
-        print('raster shape: ', raster.shape)
-        print('start before clipping', start)
-        print('finish before clipping', finish)
-        if start[0] < 0:
-            start[0] = 0
-        if start[1] < 0:
-            start[1] = 0
-        if finish[0] > raster.shape[0]:
-            finish[0] = raster.shape[0]
-        if finish[1] > raster.shape[1]:
-            finish[1] = raster.shape[1]
+            print('raster shape: ', raster.shape)
+            print('start before clipping', start)
+            print('finish before clipping', finish)
+            if start[0] < 0:
+                start[0] = 0
+            if start[1] < 0:
+                start[1] = 0
+            if finish[0] > raster.shape[0]:
+                finish[0] = raster.shape[0]
+            if finish[1] > raster.shape[1]:
+                finish[1] = raster.shape[1]
 
-        print('start after clipping', start)
-        print('finish after clipping', finish)
-        
+            print('start after clipping', start)
+            print('finish after clipping', finish)
+            window = ((start[0], finish[0]), (start[1], finish[1]))
 
-        return raster.read(1, window=((start[0], finish[0]), (start[1], finish[1])))
+            data = raster.read(1, window=window)
+            affine = rasterio.windows.transform(window, raster.transform)
+
+        if down_sample_factor is None:
+            return {
+                'crs': raster.crs,
+                'transform': affine,
+                'data': data
+            }
+
+        factor = down_sample_factor
+        new_data = np.empty(shape=(round(data.shape[0] * factor),
+                                   round(data.shape[1] * factor)),
+                            dtype=data.dtype)
+
+        new_affine = Affine(affine.a / factor, affine.b, affine.c,
+                            affine.d, affine.e / factor, affine.f)
+
+        reproject(data, new_data, src_transform=affine, dst_transform=new_affine,
+                  src_crs=raster.crs, dst_crs=raster.crs, resampling=Resampling.nearest)
+
+        return {
+            'crs': raster.crs,
+            'transform': new_affine,
+            'data': new_data
+        }
+
+
+
 
 
 def main(leve1, out_dir, subset_coords=None, Bands=None): 
@@ -130,7 +159,14 @@ def main(leve1, out_dir, subset_coords=None, Bands=None):
         try:
             print(band)
             tiff_file = fnmatch.filter(tiff_files, '*{}.TIF'.format(band))[0]
-            subset_img(pjoin(out_dir, tiff_file), subset_coords)
+            if band is not 'B8':
+                down_sampling_factor = 2 
+            else: 
+                down_sampling_factor = None
+
+            dicts = subset_img(pjoin(out_dir, tiff_file), subset_coords, down_sampling_factor)
+            print(dicts['transform'])
+            print(dicts['data'].shape)
         except IndexError: 
             pass 
         
