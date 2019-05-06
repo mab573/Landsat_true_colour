@@ -6,7 +6,8 @@ import rasterio
 from rasterio.warp import transform_bounds, reproject, Resampling
 from rasterio.crs import CRS
 from affine import Affine
-
+from rasterio import shutil as rio_shutil 
+from rasterio.vrt import WarpedVRT
 import os
 from os.path import join as pjoin, basename, dirname 
 import h5py
@@ -76,20 +77,25 @@ def write_sat_solar(level1, out_dir, tle_path='/g/data/v10/eoancillarydata/senso
                 write_img(dset, out_name, geobox=geo_box, nodata=dset.attrs.get('no_data_value'))
 
 
-def subset_img(filename, subset_coords=None, down_sample_factor=None):
-    with rasterio.open(filename) as raster:
-        if subset_coords is None:
-            data = raster.read(1)
-            affine = raster.transform
 
+def get_target_options(filename, subset_coords=None):
+
+    with rasterio.open(filename) as raster:
+        print(raster.bounds)
+        if subset_coords is None:
+            affine = raster.transform
+            return {'resampling': Resampling.nearest,
+                    'transform': raster.transform,
+                    'crs': raster.crs,
+                    'height': raster.shape[1],
+                    'width': raster.shape[0]
+                   }
         else:
             ul_lat, ul_lon, lr_lat, lr_lon = subset_coords
-
             wgs = CRS.from_epsg(4326)
-
             left, bottom, right, top = transform_bounds(wgs, raster.crs,
                                                         ul_lon, lr_lat, lr_lon, ul_lat)
-
+            
             start = ~raster.transform * (left, top)
             finish = ~raster.transform * (right, bottom)
 
@@ -114,38 +120,16 @@ def subset_img(filename, subset_coords=None, down_sample_factor=None):
 
             data = raster.read(1, window=window)
             affine = rasterio.windows.transform(window, raster.transform)
-
-        if down_sample_factor is None:
-            return {
-                'crs': raster.crs,
-                'transform': affine,
-                'data': data
-            }
-
-        factor = down_sample_factor
-        new_data = np.empty(shape=(round(data.shape[0] * factor),
-                                   round(data.shape[1] * factor)),
-                            dtype=data.dtype)
-
-        new_affine = Affine(affine.a / factor, affine.b, affine.c,
-                            affine.d, affine.e / factor, affine.f)
-
-        reproject(data, new_data, src_transform=affine, dst_transform=new_affine,
-                  src_crs=raster.crs, dst_crs=raster.crs, resampling=Resampling.nearest)
-
-        return {
-            'crs': raster.crs,
-            'transform': new_affine,
-            'data': new_data
-        }
-
-
-
-
-
+          
+            return {'resampling': Resampling.nearest,
+                    'transform': affine,
+                    'crs': raster.crs, 
+                    'height': data.shape[1], 
+                    'width': data.shape[0]
+                    }
+    
 def main(leve1, out_dir, subset_coords=None, Bands=None): 
     # write_sat_solar(leve1, out_dir)
-    
     # unpack(level1, out_dir)
     
     if Bands: 
@@ -154,19 +138,16 @@ def main(leve1, out_dir, subset_coords=None, Bands=None):
         bands = LANDSAT_BANDS
     
     tiff_files = [f for f in os.listdir(out_dir)]
-
+    panchromatic_file = pjoin(out_dir, fnmatch.filter(tiff_files, '*B8.TIF')[0])
+    vrt_options = get_target_options(panchromatic_file, subset_coords)
     for band in bands + SAT_SOLAR_BANDS: 
         try:
-            print(band)
             tiff_file = fnmatch.filter(tiff_files, '*{}.TIF'.format(band))[0]
-            if band is not 'B8':
-                down_sampling_factor = 2 
-            else: 
-                down_sampling_factor = None
-
-            dicts = subset_img(pjoin(out_dir, tiff_file), subset_coords, down_sampling_factor)
-            print(dicts['transform'])
-            print(dicts['data'].shape)
+            with rasterio.open(pjoin(out_dir, tiff_file)) as src: 
+                with WarpedVRT(src, **vrt_options) as vrt: 
+                    data = vrt.read()
+                    out_file = pjoin(out_dir, 'gridded_subset_{}'.format(tiff_file))
+                    rio_shutil.copy(vrt, out_file, driver='GTiff')
         except IndexError: 
             pass 
         
