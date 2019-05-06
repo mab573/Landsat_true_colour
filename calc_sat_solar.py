@@ -35,6 +35,24 @@ SAT_SOLAR_BANDS = ['SATELLITE-VIEW', 'SATELLITE-AZIMUTH', 'SOLAR-ZENITH', 'SOLAR
 LANDSAT_BANDS = ['B{}'.format(i) for i in range(2,5)]
 
 
+def get_band_scale_offset(mtl_file): 
+
+    rad_scale_tags=['RADIANCE_MULT_BAND_{}'.format(i) for i in range(1, 12)]
+    rad_offset_tags = ['RADIANCE_ADD_BAND_{}'.format(i) for i in range(1, 12)] 
+    ref_scale_tags = ['REFLECTANCE_MULT_BAND_{}'.format(i) for i in range(1, 10)]
+    ref_offset_tags = ['REFLECTANCE_ADD_BAND_{}'.format(i) for i in range(1, 10)]
+    
+    tags = rad_scale_tags + rad_offset_tags + ref_scale_tags + ref_offset_tags
+
+    meta_file_lines = None
+    with open(mtl_file, 'r') as fid:
+        meta_file_lines = fid.readlines()
+    
+    meta_file_dict = {line.split('=')[0].strip(): float(line.split('=')[1].strip().rstrip())
+                      for line in meta_file_lines for tag in tags  if fnmatch.fnmatch(line, '*{}*'.format(tag))}
+   
+    return meta_file_dict   
+
 def unpack(tar_file, out_dir): 
     """
     Unpacks the tar or tar gz  file 
@@ -131,12 +149,17 @@ def subset(file_path, grid_specs):
             return {'data': vrt.read(), 'profile': vrt.profile}
 @profile 
 def main(leve1, out_dir, subset_coords=None, upsample=True): 
-    write_sat_solar(leve1, out_dir)
-    unpack(level1, out_dir)
-     
+    #write_sat_solar(leve1, out_dir)
+    #unpack(level1, out_dir)
+    
     tiff_files = [f for f in os.listdir(out_dir)]
+    mtl_file = pjoin(out_dir, fnmatch.filter(tiff_files, '*MTL.txt')[0])
+    print(mtl_file)
+    scale_offset_dict = get_band_scale_offset(mtl_file)
+    print(scale_offset_dict)
+    exit()
     bands = LANDSAT_BANDS + SAT_SOLAR_BANDS
-  
+        
     if upsample:
         bands.append('B8')
         grid_spec_file = pjoin(out_dir, fnmatch.filter(tiff_files, '*B8.TIF')[0])
