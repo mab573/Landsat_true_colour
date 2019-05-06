@@ -153,7 +153,7 @@ for o, a in opts:
         elif o in ("-c", "--AC"):
             AC = a
         elif o in ("-p", "--pan"):
-            pan = a
+            pan_sharpen = a
         elif o in ("-s", "--subset"):
             subset = a
         elif o in ("-b", "--bright"):
@@ -313,9 +313,12 @@ sys.exit()
 # Split file name from the path
 
 in_path, in_file = os.path.split(zip_file)
+print('in_path', in_path)
+print('in_file', in_file)
 get_basename=in_file.split('.')
 basename=get_basename[0]
 out_dir_top=in_path+'/'+basename
+print('out_dir_top', out_dir_top)
 os.system("mkdir "+out_dir_top)
 # unpack the archive file to the new directory
 
@@ -407,14 +410,17 @@ ref_offset=[]
 
 
 meta_file_lines=[]
-with open(LS_meta_file,'rb') as f:
+with open(LS_meta_file,'r') as f:
 
-	for line in f.readlines():
+	for line in f:
 		
 		meta_file_lines.append(line)
 
 f.closed
 
+
+print('meta', meta_file_lines[0])
+print('sun', sun_az_tags)
 
 new_list = [j for j in meta_file_lines if re.search(sun_az_tags, j)]
 for item in new_list:
@@ -651,18 +657,17 @@ else:
 # etc but the order is band 1 - 9 but the spectral ranges are not consecutive
 
 try:
-  pan
+  pan_sharpen
 except NameError:
+
+  do_pan=0
+  print ('\n\n\n Not pan sharpening the images. \n\n\n')
+else:
 
   ### No need to call MODTRAN, so dont.
   print ('\n\n\n Pan sharpening the image. \n\n\n')
 
   do_pan=1
-
-else:
-
-  do_pan=0
-  print ('\n\n\n Not pan sharpening the images. \n\n\n')
 
 
 try:
@@ -749,7 +754,11 @@ else:
     VA_sub=VA
     SA_sub=SA
 
+    print('we are missing calc_sat_solar here')
+
+print('ba-bye')
 sys.exit()
+print("you'll never see this")
 
 if do_sub == 1:
 
