@@ -6,7 +6,7 @@ import rasterio
 from rasterio.warp import transform_bounds, reproject, Resampling
 from rasterio.crs import CRS
 from affine import Affine
-from rasterio import shutil as rio_shutil 
+#from rasterio import shutil as rio_shutil 
 from rasterio.vrt import WarpedVRT
 import os
 from os.path import join as pjoin, basename, dirname 
@@ -150,7 +150,7 @@ def main(leve1, out_dir, subset_coords=None, upsample=True):
        
         
 
-
+'''
 if __name__ == '__main__':
     upsample = False
     subset_coords = (-35.5, 144.0, -37.0, 145.0)
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     print(time.clock() - start_time)
     for key in data.keys():
         print(data[key]['profile']['transform'])
-
+'''
 
 
 

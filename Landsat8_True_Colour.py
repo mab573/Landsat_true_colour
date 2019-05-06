@@ -46,7 +46,7 @@ import Create_L8_interp_RTC as C_RTC
 import solar_pos as sol_p
 import ContEnh
 
-## Written by Passang (3/5/19)
+## Written by Passang (6/5/19)
 import calc_sat_solar
 
 # This stuff is used to adjust brightness and contrast
@@ -723,12 +723,14 @@ if do_sub == 1:
     if do_pan == 1:
         ## Subset at 15 m resolution
         Bands = ['B2', 'B3', 'B4', 'B8']
-        VZA,SZA,VAA,SAA,B2,B3,B4,B8=calc_sat_solar.main(zip_file, path, subset, Bands)
+        print(list(calc_sat_solar.main(zip_file, path, subset_coords=subset, upsample=True)))
+  
+        #VZA,SZA,VAA,SAA,B2,B3,B4,B8=calc_sat_solar.main(zip_file, path, subset, Bands)
 
     else:
         ## Subset at native resolution and we dont need the pan band
         Bands = ['B2', 'B3', 'B4']
-        VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, subset, Bands)
+        VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, subset_coords=subset, upsample=False)
 
 else:
 
