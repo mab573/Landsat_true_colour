@@ -25,11 +25,14 @@ import fnmatch
 import tarfile 
 import logging 
 
+from memory_profiler import profile 
+import time 
+
 _log = logging.getLogger(__name__)
 
 
 SAT_SOLAR_BANDS = ['SATELLITE-VIEW', 'SATELLITE-AZIMUTH', 'SOLAR-ZENITH', 'SOLAR-AZIMUTH']
-LANDSAT_BANDS = ['B{}'.format(i) for i in range(1,12)]
+LANDSAT_BANDS = ['B{}'.format(i) for i in range(2,5)]
 
 
 def unpack(tar_file, out_dir): 
@@ -77,18 +80,16 @@ def write_sat_solar(level1, out_dir, tle_path='/g/data/v10/eoancillarydata/senso
                 write_img(dset, out_name, geobox=geo_box, nodata=dset.attrs.get('no_data_value'))
 
 
-
-def get_target_options(filename, subset_coords=None):
-
+def get_grid_options(filename, subset_coords=None):
     with rasterio.open(filename) as raster:
-        print(raster.bounds)
         if subset_coords is None:
             affine = raster.transform
             return {'resampling': Resampling.nearest,
                     'transform': raster.transform,
                     'crs': raster.crs,
                     'height': raster.shape[1],
-                    'width': raster.shape[0]
+                    'width': raster.shape[0], 
+                    'nodata': raster.nodata
                    }
         else:
             ul_lat, ul_lon, lr_lat, lr_lon = subset_coords
@@ -102,9 +103,6 @@ def get_target_options(filename, subset_coords=None):
             start = [int(x) for x in reversed(start)]
             finish = [int(x) for x in reversed(finish)]
 
-            print('raster shape: ', raster.shape)
-            print('start before clipping', start)
-            print('finish before clipping', finish)
             if start[0] < 0:
                 start[0] = 0
             if start[1] < 0:
@@ -114,8 +112,6 @@ def get_target_options(filename, subset_coords=None):
             if finish[1] > raster.shape[1]:
                 finish[1] = raster.shape[1]
 
-            print('start after clipping', start)
-            print('finish after clipping', finish)
             window = ((start[0], finish[0]), (start[1], finish[1]))
 
             data = raster.read(1, window=window)
@@ -125,43 +121,47 @@ def get_target_options(filename, subset_coords=None):
                     'transform': affine,
                     'crs': raster.crs, 
                     'height': data.shape[1], 
-                    'width': data.shape[0]
+                    'width': data.shape[0], 
+                    'nodata': raster.nodata
                     }
-    
-def main(leve1, out_dir, subset_coords=None, Bands=None): 
-    # write_sat_solar(leve1, out_dir)
-    # unpack(level1, out_dir)
-    
-    if Bands: 
-        bands = Bands 
-    else: 
-        bands = LANDSAT_BANDS
-    
+
+def subset(file_path, grid_specs): 
+    with rasterio.open(file_path) as src: 
+        with WarpedVRT(src, **grid_specs) as vrt: 
+            return {'data': vrt.read(), 'profile': vrt.profile}
+@profile 
+def main(leve1, out_dir, subset_coords=None, upsample=True): 
+    write_sat_solar(leve1, out_dir)
+    unpack(level1, out_dir)
+     
     tiff_files = [f for f in os.listdir(out_dir)]
-    panchromatic_file = pjoin(out_dir, fnmatch.filter(tiff_files, '*B8.TIF')[0])
-    vrt_options = get_target_options(panchromatic_file, subset_coords)
-    for band in bands + SAT_SOLAR_BANDS: 
-        try:
-            tiff_file = fnmatch.filter(tiff_files, '*{}.TIF'.format(band))[0]
-            with rasterio.open(pjoin(out_dir, tiff_file)) as src: 
-                with WarpedVRT(src, **vrt_options) as vrt: 
-                    data = vrt.read()
-                    out_file = pjoin(out_dir, 'gridded_subset_{}'.format(tiff_file))
-                    rio_shutil.copy(vrt, out_file, driver='GTiff')
-        except IndexError: 
-            pass 
+    bands = LANDSAT_BANDS + SAT_SOLAR_BANDS
+  
+    if upsample:
+        bands.append('B8')
+        grid_spec_file = pjoin(out_dir, fnmatch.filter(tiff_files, '*B8.TIF')[0])
+    else: 
+        grid_spec_file = pjoin(out_dir, fnmatch.filter(tiff_files, '*{}.TIF'.format(bands[0]))[0])
+
+    grid_specs = get_grid_options(grid_spec_file, subset_coords)
+    file_paths = [pjoin(out_dir, fnmatch.filter(tiff_files, '*{}.TIF'.format(band))[0]) for band in bands]
+    
+    return {basename(file_path): subset(file_path, grid_specs) for file_path in file_paths}
+       
         
 
 
 
 if __name__ == '__main__':
-    Bands = ['B2', 'B3', 'B4', 'B8']
+    upsample = False
     subset_coords = (-35.5, 144.0, -37.0, 145.0)
     level1 = '/g/data/da82/AODH/USGS/L1/Landsat/C1/093_085/LC80930852019051/LC08_L1TP_093085_20190220_20190222_01_T1.tar'
     out_dir = '/g/data/u46/users/pd1813/Landsat_true_colour/test'
-    
-    main(level1, out_dir, subset_coords, Bands)
-
+    start_time = time.clock()
+    data = main(level1, out_dir, subset_coords, upsample)
+    print(time.clock() - start_time)
+    for key in data.keys():
+        print(data[key]['profile']['transform'])
 
 
 
