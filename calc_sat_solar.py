@@ -77,7 +77,7 @@ def write_sat_solar(level1, out_dir, tle_path='/g/data/v10/eoancillarydata/senso
                 dset = dset_group[band]
                 geo_box = GriddedGeoBox.from_h5_dataset(dset)
                 out_name = pjoin(out_dir, '{}_{}.TIF'.format(container.granules[0], band))
-                write_img(dset, out_name, geobox=geo_box, nodata=dset.attrs.get('no_data_value'))
+                write_img(dset, out_name, geobox=geo_box, options={}, nodata=dset.attrs.get('no_data_value'))
 
 
 def get_grid_options(filename, subset_coords=None):
