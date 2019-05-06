@@ -43,7 +43,6 @@ import netCDF4
 import Landsat8_atmospheric_correction
 import Simple_Pan_Sharpen as pan
 import Create_L8_interp_RTC as C_RTC
-import solar_pos as sol_p
 import ContEnh
 
 ## Written by Passang (3/5/19)
@@ -412,9 +411,9 @@ ref_offset=[]
 meta_file_lines=[]
 with open(LS_meta_file,'r') as f:
 
-	for line in f:
+    for line in f:
 		
-		meta_file_lines.append(line)
+        meta_file_lines.append(line)
 
 f.closed
 
