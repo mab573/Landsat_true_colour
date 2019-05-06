@@ -283,33 +283,14 @@ def gdal_sub(in_netcdf_file,chan_name,out_netcdf_file,out_dir):
 ## Used to assess elapsed time. Feel free to delete. Do the same at the other end as well
 ts_0 = time.time()
 
-'''
-hoy=2
-latitude_deg=-15.0
-longitude_deg=115.0
-year=2019
-
-Sol_el=[]
-Sol_az=[]
-
-for jj in range (0,40,5):
-
-    for ii in range(0,366):
-        print ii,jj
-        result=sol_p.calc_sun_position(latitude_deg-float(jj), longitude_deg, year, hoy+(24*ii))
-        Sol_el.append(result[0])
-        Sol_az.append(result[1])
-
-plt.plot(Sol_az,'b.')
-plt.show()
-
-sys.exit()
-'''
 
 # Untar and unzip the Landsat8 files in a directory named after the archive file
 # The Landsat file names contain info on target path and row, year and day of year of capture which is a unique identifier
 
 # Split file name from the path
+
+## Temporary hard coded path for output
+in_path='/short/er8/mab573/Landsat'
 
 in_path, in_file = os.path.split(zip_file)
 print('in_path', in_path)
@@ -538,13 +519,6 @@ sec_split=ST_split[2].split('.')
 scene_time_float=float(ST_split[0])+float(ST_split[1])/60.0+float(sec_split[0])/3600.0
 scene_time="%.3f" % scene_time_float
 
-#print 'UL Lat ',UL_lat_co
-#print 'LR_lat ',LR_lat_co
-#print 'LR_lon ',LR_lon_co
-#print 'Tile centre coordinates '+str(centre_lat)+' '+str(centre_lon)
-#print 'Tile time ',scene_time
-
-
 #### If the subset switch is used then get everything in the right format so that it can be 
 #### subsetted properly.
 #### These represent the upper left and lower right coordinates of the grid you want to display.
@@ -634,26 +608,7 @@ else:
   
   print ('\n\n\n Atmospherically correcting radiance data to surface reflectance. \n\n\n')
 
-  # None of this is required anymore as I have a LUT
-  #tape5_dir=out_dir
-
-  #Landsat8_create_tape5_files.write_tape5(day_of_year,scene_centre, scene_time, tape5_dir, data_dir)
-
-  #subprocess.call([MOD_exe])
-
-  #Landsat8_make_final_lookups.Make_final_lookups(tape5_dir)
-
   do_AC=1
-
-# Read in the spectral response finctions for Landsat 8
-
-#VIS_SRF_table=np.loadtxt(VIR_SRF, dtype=float, delimiter=',', skiprows = 2)
-
-# Band1 0,1
-# Band2 2,3
-# Band3 4,5
-# Band4 6,7
-# etc but the order is band 1 - 9 but the spectral ranges are not consecutive
 
 try:
   pan_sharpen
@@ -683,42 +638,6 @@ else:
   do_Rrs=1
   print ('\n\n\n Saving the first 4 bands as Rrs. \n\n\n')
 
-
-# Temporary hard coded path
-path='/g/data/if87/ARD_interoperability/ga-packaged_collection/2019-02-20/LC80930852019051LGN00/SUPPLEMENTARY/'
-out_file_base=path+'RTC/'
-#VZA=open_geotiff(path+'LC80930852019051LGN00_SATELLITE_VIEW.TIF')
-#SZA=open_geotiff(path+'LC80930852019051LGN00_SOLAR_ZENITH.TIF')
-#VA=open_geotiff(path+'LC80930852019051LGN00_SATELLITE_AZIMUTH.TIF')
-#SA=open_geotiff(path+'LC80930852019051LGN00_SOLAR_AZIMUTH.TIF')
-
-VZA=path+'LC80930852019051LGN00_SATELLITE_VIEW.TIF'
-SZA=path+'LC80930852019051LGN00_SOLAR_ZENITH.TIF'
-VA=path+'LC80930852019051LGN00_SATELLITE_AZIMUTH.TIF'
-SA=path+'LC80930852019051LGN00_SOLAR_AZIMUTH.TIF'
-
-'''
-## Temporary hard coded path
-path='/short/er8/mab573/Landsat/'
-out_file_base=path+'RTC/'
-VZA=open_geotiff(path+'SATELLITE-VIEW.tif')
-SZA=open_geotiff(path+'SOLAR-ZENITH.tif')
-VA=open_geotiff(path+'SATELLITE-AZIMUTH.tif')
-SA=open_geotiff(path+'SOLAR-AZIMUTH.tif')
-'''
-
-path='/short/er8/mab573/Landsat/'
-VZA_sub=path+'SATELLITE-VIEW_sub.TIF'
-SZA_sub=path+'SOLAR-ZENITH_sub.TIF'
-VA_sub=path+'SATELLITE-AZIMUTH_sub.TIF'
-SA_sub=path+'SOLAR-AZIMUTH_sub.TIF'
-
-VZA_sub_B8=path+'SATELLITE-VIEW_sub_B8.TIF'
-SZA_sub_B8=path+'SOLAR-ZENITH_sub_B8.TIF'
-VA_sub_B8=path+'SATELLITE-AZIMUTH_sub_B8.TIF'
-SA_sub_B8=path+'SOLAR-AZIMUTH_sub_B8.TIF'
-
-
 #### In previous versions, subsetting is done near the end of the processing.
 #### This causes problems. Subset all bands first.
 
@@ -726,124 +645,42 @@ if do_sub == 1:
 
     if do_pan == 1:
         ## Subset at 15 m resolution
-        Bands = ['B2', 'B3', 'B4', 'B8']
-        VZA,SZA,VAA,SAA,B2,B3,B4,B8=calc_sat_solar.main(zip_file, path, subset, Bands)
+        VZA,SZA,VAA,SAA,B2,B3,B4,B8=calc_sat_solar.main(zip_file, path, subset, upsample=True)
 
     else:
-        ## Subset at native resolution and we dont need the pan band
-        Bands = ['B2', 'B3', 'B4']
-        VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, subset, Bands)
+        ## Subset at 30 m resolution
+        VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, subset, upsample=False)
 
 else:
 
-    LS_B1_sub=LS_B1
-    LS_B2_sub=LS_B2
-    LS_B3_sub=LS_B3
-    LS_B4_sub=LS_B4
-    LS_B5_sub=LS_B5
-    LS_B6_sub=LS_B6
-    LS_B7_sub=LS_B7
-    LS_B8_sub=LS_B8
-    LS_B9_sub=LS_B9
-    LS_B10_sub=LS_B10
-    LS_B11_sub=LS_B11
+    if do_pan == 1:
+        ## Full scene at 15 m resolution
+        VZA,SZA,VAA,SAA,B2,B3,B4,B8=calc_sat_solar.main(zip_file, path, upsample=True)
 
-    VZA_sub=VZA
-    SZA_sub=SZA
-    VA_sub=VA
-    SA_sub=SA
+    else:
+        ## Full scene at native resolution and we dont need the pan band
+        VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, upsample=False)
 
-    print('we are missing calc_sat_solar here')
 
-print('ba-bye')
 sys.exit()
-print("you'll never see this")
-
-if do_sub == 1:
-
-    if do_pan ==1:
-        print ('Subsetting the scene with upper left geographic coordinates',ulat,ulon,' UTM ',ul_E,ul_N)
-        print ('and low right geographic coordinates ',llat,llon,' UTM ',lr_E,lr_N,' with brightening factor ',bright,'\n\n\n')
-
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B1,LS_B1_sub))
-        os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B2,LS_B2_sub))
-        os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B3,LS_B3_sub))
-        os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B4,LS_B4_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B5,LS_B5_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B6,LS_B6_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B7,LS_B7_sub))
-        os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B8,LS_B8_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B9,LS_B9_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B10,LS_B10_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B11,LS_B11_sub))
-
-        ## ADD subsetting of the VZA, SZA, VA and SA and use this to generate RTC raster of the correct size
-        os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, VZA,VZA_sub_B8))
-        os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, SZA,SZA_sub_B8))
-        os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, VA,VA_sub_B8))
-        os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, SA,SA_sub_B8))
-
-    else:
-        print ('Subsetting the scene with upper left geographic coordinates',ulat,ulon,' UTM ',ul_E,ul_N)
-        print ('and low right geographic coordinates ',llat,llon,' UTM ',lr_E,lr_N,' with brightening factor ',bright,'\n\n\n')
- 
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B1,LS_B1_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B2,LS_B2_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B3,LS_B3_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B4,LS_B4_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B5,LS_B5_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B6,LS_B6_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B7,LS_B7_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B8,LS_B8_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B9,LS_B9_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B10,LS_B10_sub))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B11,LS_B11_sub))
- 
-        ## ADD subsetting of the VZA, SZA, VA and SA and use this to generate RTC raster of the correct size
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, VZA,VZA_sub_B8))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, SZA,SZA_sub_B8))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, VA,VA_sub_B8))
-        os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, SA,SA_sub_B8))
-
-
-else:
-    LS_B1_sub=LS_B1
-    LS_B2_sub=LS_B2
-    LS_B3_sub=LS_B3
-    LS_B4_sub=LS_B4
-    LS_B5_sub=LS_B5
-    LS_B6_sub=LS_B6
-    LS_B7_sub=LS_B7
-    LS_B8_sub=LS_B8
-    LS_B9_sub=LS_B9
-    LS_B10_sub=LS_B10
-    LS_B11_sub=LS_B11
-
-    VZA_sub=VZA
-    SZA_sub=SZA
-    VA_sub=VA
-    SA_sub=SA 
-    ## If you want to do this full scene, you would still need to generate VZA etc at 15 m for band 8 RTC generation
 
 ############ Generate RTC interpolated Raster files ############
 
-#V_Z_A=open_geotiff(VZA_sub)
-#S_Z_A=open_geotiff(SZA_sub)
-#V_A=open_geotiff(VA_sub)
-#S_A=open_geotiff(SA_sub)
 
 C_RTC.generate_RTC_rasters(VZA_sub,SZA_sub,VA_sub,SA_sub,VZA_sub_B8,SZA_sub_B8,VA_sub_B8,SA_sub_B8)
 
 #PROCESS THE RED BAND (BAND4). OPEN, ATMOSPERIC COMPENSATION AND WRITE OUT RESULTANT BAND
-ds = gdal.Open(LS_B4_sub, gdal.GA_ReadOnly)
-(X, deltaX, rotation, Y, rotation, deltaY) = ds.GetGeoTransform()
-srs_wkt = ds.GetProjection()
-Nx = ds.RasterXSize
-Ny = ds.RasterYSize
-ary = []
-ary = ds.GetRasterBand(1).ReadAsArray()
-rad_arr=(ary[:].astype(float)*rad_scale[3])+rad_offset[3]
+#ds = gdal.Open(LS_B4_sub, gdal.GA_ReadOnly)
+#(X, deltaX, rotation, Y, rotation, deltaY) = ds.GetGeoTransform()
+#srs_wkt = ds.GetProjection()
+#Nx = ds.RasterXSize
+#Ny = ds.RasterYSize
+#ary = []
+#ary = ds.GetRasterBand(1).ReadAsArray()
+#rad_arr=(ary[:].astype(float)*rad_scale[3])+rad_offset[3]
 
+## Based on Passangs new code
+rad_arr=(B4[:].astype(float)*rad_scale[3])+rad_offset[3]
 
 # Call the Landsat AC subroutine and return the resultant reflectance array
 # Will probably have to un hard code this path
@@ -866,39 +703,18 @@ else:
 	
 	rho_out_b4=rad_arr
 
-# Write reflectance array to a Geotiff file
-
-# Set file vars
-
-output_file_B4 = out_dir+basename+'_B4_SAC.TIF'
-
-# Create gtif
-driver = gdal.GetDriverByName("GTiff")
-dst_ds = driver.Create(output_file_B4, Nx, Ny, 1 , gdal.GDT_UInt16)
-
-# top left x, w-e pixel resolution, rotation, top left y, rotation, n-s pixel resolution
-dst_ds.SetGeoTransform( [ X, deltaX, rotation, Y, rotation, deltaY ] )
-
-# set the reference info 
-srs = osr.SpatialReference()
-srs.SetWellKnownGeogCS("WGS84")
-dst_ds.SetProjection( srs_wkt )
-
-# write the band
-dst_ds.GetRasterBand(1).WriteArray(rho_out_b4)
-
-
-
 #Open and save image of green band
-ds = gdal.Open(LS_B3_sub, gdal.GA_ReadOnly)
-(X, deltaX, rotation, Y, rotation, deltaY) = ds.GetGeoTransform()
-srs_wkt = ds.GetProjection()
-Nx = ds.RasterXSize
-Ny = ds.RasterYSize
-ary = []
-ary = ds.GetRasterBand(1).ReadAsArray()
-rad_arr=(ary[:].astype(float)*rad_scale[2])+rad_offset[2]
+#ds = gdal.Open(LS_B3_sub, gdal.GA_ReadOnly)
+#(X, deltaX, rotation, Y, rotation, deltaY) = ds.GetGeoTransform()
+#srs_wkt = ds.GetProjection()
+#Nx = ds.RasterXSize
+#Ny = ds.RasterYSize
+#ary = []
+#ary = ds.GetRasterBand(1).ReadAsArray()
+#rad_arr=(ary[:].astype(float)*rad_scale[2])+rad_offset[2]
 
+## Based on Passangs new code
+rad_arr=(B3[:].astype(float)*rad_scale[2])+rad_offset[2]
 
 if do_AC==1:
 
@@ -915,37 +731,18 @@ else:
 
 	rho_out_b3=rad_arr
 
-
-
-# Set file vars
-output_file_B3 = out_dir+basename+'_B3_SAC.TIF'
-
-# Create gtif
-driver = gdal.GetDriverByName("GTiff")
-dst_ds = driver.Create(output_file_B3, Nx, Ny, 1 , gdal.GDT_UInt16)
-
-# top left x, w-e pixel resolution, rotation, top left y, rotation, n-s pixel resolution
-dst_ds.SetGeoTransform( [ X, deltaX, rotation, Y, rotation, deltaY ] )
-
-# set the reference info 
-srs = osr.SpatialReference()
-srs.SetWellKnownGeogCS("WGS84")
-dst_ds.SetProjection( srs_wkt )
-
-# write the band
-dst_ds.GetRasterBand(1).WriteArray(rho_out_b3)
-
-
 #Open and save image of blue band
-ds = gdal.Open(LS_B2_sub, gdal.GA_ReadOnly)
-(X, deltaX, rotation, Y, rotation, deltaY) = ds.GetGeoTransform()
-srs_wkt = ds.GetProjection()
-Nx = ds.RasterXSize
-Ny = ds.RasterYSize
-ary = []
-ary = ds.GetRasterBand(1).ReadAsArray()
-rad_arr=(ary[:].astype(float)*rad_scale[1])+rad_offset[1]
+#ds = gdal.Open(LS_B2_sub, gdal.GA_ReadOnly)
+#(X, deltaX, rotation, Y, rotation, deltaY) = ds.GetGeoTransform()
+#srs_wkt = ds.GetProjection()
+#Nx = ds.RasterXSize
+#Ny = ds.RasterYSize
+#ary = []
+#ary = ds.GetRasterBand(1).ReadAsArray()
+#rad_arr=(ary[:].astype(float)*rad_scale[1])+rad_offset[1]
 
+## Based on Passangs new code
+rad_arr=(B2[:].astype(float)*rad_scale[1])+rad_offset[1]
 #Band 2
 
 if do_AC==1:
@@ -963,216 +760,32 @@ else:
 
 	rho_out_b2=rad_arr
 
+##Open and save image of the panchromatic band
+#ds = gdal.Open(LS_B8_sub, gdal.GA_ReadOnly)
+#(X, deltaX, rotation, Y, rotation, deltaY) = ds.GetGeoTransform()
+#srs_wkt = ds.GetProjection()
+#Nx = ds.RasterXSize
+#Ny = ds.RasterYSize
+#ary = []
+#ary = ds.GetRasterBand(1).ReadAsArray()
+#rad_arr=(ary[:].astype(float)*rad_scale[7])+rad_offset[7]
 
-
-# Set file vars
-output_file_B2 = out_dir+basename+'_B2_SAC.TIF'
-
-# Create gtif
-driver = gdal.GetDriverByName("GTiff")
-dst_ds = driver.Create(output_file_B2, Nx, Ny, 1 , gdal.GDT_UInt16)
-
-# top left x, w-e pixel resolution, rotation, top left y, rotation, n-s pixel resolution
-dst_ds.SetGeoTransform( [ X, deltaX, rotation, Y, rotation, deltaY ] )
-
-# set the reference info 
-srs = osr.SpatialReference()
-srs.SetWellKnownGeogCS("WGS84")
-dst_ds.SetProjection( srs_wkt )
-
-# write the band
-dst_ds.GetRasterBand(1).WriteArray(rho_out_b2)
-
-
-######### Process band 1 as well. This is not used to generate the true colour image.
-'''
-#PROCESS THE RED BAND (BAND1). OPEN, ATMOSPERIC COMPENSATION AND WRITE OUT RESULTANT BAND
-ds = gdal.Open(LS_B1_sub, gdal.GA_ReadOnly)
-(X, deltaX, rotation, Y, rotation, deltaY) = ds.GetGeoTransform()
-srs_wkt = ds.GetProjection()
-Nx = ds.RasterXSize
-Ny = ds.RasterYSize
-ary = []
-ary = ds.GetRasterBand(1).ReadAsArray()
-rad_arr=(ary[:].astype(float)*rad_scale[0])+rad_offset[0]
-
-
-# Call the Landsat AC subroutine and return the resultant reflectance array
-# I haven't generated RTC for 1. I don't know why I used to do it.
-
-if do_AC==1:
-
-        print 'Atmosperically compensating for band 1 ....\n\n'
-        rho=Landsat8_atmospheric_correction.Landsat_ATCOR(rad_arr,filt_res,tape5_dir+'MOD_ATM-cm_WV_0.10_0.50.7sc_lookup.txt', tape5_dir+'lookup_wavelengths.txt')
-
-        # Remove any negative values
-        rho_out_b1 = np.empty((Ny,Nx),dtype=int) # I don't know why but these need to be swapped
-        np.clip(rho,0, max_refl, out=rho_out_b1)
-
-	if do_Rrs==1:
-
-                Rrs_out_b1=rho_out_b1/np.pi
-
-else:
-
-        rho_out_b1=rad_arr
-
-# Write reflectance array to a Geotiff file
-
-# Set file vars
-output_file_B1 = out_dir+basename+'_B1_SAC.TIF'
-
-# Create gtif
-driver = gdal.GetDriverByName("GTiff")
-dst_ds = driver.Create(output_file_B1, Nx, Ny, 1 , gdal.GDT_UInt16)
-
-# top left x, w-e pixel resolution, rotation, top left y, rotation, n-s pixel resolution
-dst_ds.SetGeoTransform( [ X, deltaX, rotation, Y, rotation, deltaY ] )
-
-# set the reference info
-srs = osr.SpatialReference()
-srs.SetWellKnownGeogCS("WGS84")
-dst_ds.SetProjection( srs_wkt )
-
-# write the band
-dst_ds.GetRasterBand(1).WriteArray(rho_out_b1)
-
-#########
-'''
-
-
-########################################### Save the three colour bands to a single tiff file for other processing purposes
-# Set file vars
-
-output_file_Lo_res = out_dir+basename+'_RGB_SAC.TIF'
-
-# Create gtif
-driver = gdal.GetDriverByName("GTiff")
-dst_ds = driver.Create(output_file_Lo_res, Nx, Ny, 3 , gdal.GDT_UInt16)
-
-# top left x, w-e pixel resolution, rotation, top left y, rotation, n-s pixel resolution
-dst_ds.SetGeoTransform( [ X, deltaX, rotation, Y, rotation, deltaY ] )
-
-# set the reference info 
-srs = osr.SpatialReference()
-srs.SetWellKnownGeogCS("WGS84")
-dst_ds.SetProjection( srs_wkt )
-
-# write the band
-
-g = gdal.Open(output_file_B2) # blue band
-band1 = g.ReadAsArray()
-dst_ds.GetRasterBand(1).WriteArray(band1)
-
-g = gdal.Open(output_file_B3) # green band
-band1 = g.ReadAsArray()
-dst_ds.GetRasterBand(2).WriteArray(band1)
-
-g = gdal.Open(output_file_B4) # red band
-band1 = g.ReadAsArray()
-dst_ds.GetRasterBand(3).WriteArray(band1)
-
-
-##############################################
-
-
-########################################### Save the first 4 bands as Rrs to a geotiff file for other processing purposes
-
-if do_AC==1:
-
-    if do_Rrs==1:
-
-        Rrs_file_Lo_res = out_dir+basename+'_Rrs_SAC.TIF'
-
-        # Create gtif
-        driver = gdal.GetDriverByName("GTiff")
-        dst_ds = driver.Create(Rrs_file_Lo_res, Nx, Ny, 4 , gdal.GDT_UInt16)
-
-        # top left x, w-e pixel resolution, rotation, top left y, rotation, n-s pixel resolution
-        dst_ds.SetGeoTransform( [ X, deltaX, rotation, Y, rotation, deltaY ] )
-
-        # set the reference info 
-        srs = osr.SpatialReference()
-        srs.SetWellKnownGeogCS("WGS84")
-        dst_ds.SetProjection( srs_wkt )
-
-        # write the band
-
-        #g = gdal.Open(output_file_B1) # Coastal band
-        #band1 = g.ReadAsArray()
-        dst_ds.GetRasterBand(1).WriteArray(Rrs_out_b1)
-
-        #g = gdal.Open(output_file_B2) # blue band
-        #band1 = g.ReadAsArray()
-        dst_ds.GetRasterBand(2).WriteArray(Rrs_out_b2)
-
-        #g = gdal.Open(output_file_B3) # green band
-        #band1 = g.ReadAsArray()
-        dst_ds.GetRasterBand(3).WriteArray(Rrs_out_b3)
-
-        #g = gdal.Open(output_file_B4) # red band
-        #band1 = g.ReadAsArray()
-        dst_ds.GetRasterBand(4).WriteArray(Rrs_out_b4)
-
-
-        print ('\n\n\n Saving Rrs files to multiband geotiff file \n\n\n')
-
-
-
-
-#Open and save image of the panchromatic band
-ds = gdal.Open(LS_B8_sub, gdal.GA_ReadOnly)
-(X, deltaX, rotation, Y, rotation, deltaY) = ds.GetGeoTransform()
-srs_wkt = ds.GetProjection()
-Nx = ds.RasterXSize
-Ny = ds.RasterYSize
-ary = []
-ary = ds.GetRasterBand(1).ReadAsArray()
-rad_arr=(ary[:].astype(float)*rad_scale[7])+rad_offset[7]
-
-
+## Based on Passangs new code
+rad_arr=(B8[:].astype(float)*rad_scale[7])+rad_offset[7]
 #Band 8
 
-if do_AC==1:
+if do_pan==1:
 
-    if do_pan==1:
+    if do_AC==1:
         print ('Atmospherically compensating for band 8....\n\n')
-
-        ## This is a hack but the band8 rad array is always a different shape to the
-        ## RTC arrays. Need to pad in one direction and take in the other
-
-        #rad_arr=np.take(rad_arr)
-        #rad_arr=np.pad(rad_arr,((0,0),(0,1)),'edge')
-        #rad_arr=rad_arr[0:-1,:]
-
-        #print rad_arr.shape
 
         rho=Landsat8_atmospheric_correction.Landsat_ATCOR(rad_arr, 8, RTC_dir)
         rho_out_b8 = np.empty((rho.shape),dtype=int)
         np.clip(rho,0, max_refl, out=rho_out_b8)
 
-else:
+    else:
 
-    rho_out_b8=rad_arr
-
-## Set file vars
-#output_file_B8 = out_dir+basename+'_B8_SAC.TIF'
-
-## Create gtif
-#driver = gdal.GetDriverByName("GTiff")
-#dst_ds = driver.Create(output_file_B8, Nx, Ny, 1 , gdal.GDT_UInt16)
-
-## top left x, w-e pixel resolution, rotation, top left y, rotation, n-s pixel resolution
-#dst_ds.SetGeoTransform( [ X, deltaX, rotation, Y, rotation, deltaY ] )
-
-## set the reference info 
-#srs = osr.SpatialReference()
-#srs.SetWellKnownGeogCS("WGS84")
-#dst_ds.SetProjection( srs_wkt )
-
-## write the band
-#dst_ds.GetRasterBand(1).WriteArray(rho_out_b8)
-
+        rho_out_b8=rad_arr
 
 ############# Pan sharpen using Brovey (or something like it) transform
 
@@ -1185,30 +798,6 @@ else:
     pan_sharp_blue=rho_out_b2
     pan_sharp_green=rho_out_b3
     pan_sharp_red=rho_out_b4
-
-## This saves the pan sharpened rasters to a file. The GEOTIFF format from the PAN band (band 8) is used to create
-## the file and the 3 raster bands written into the new file. 
-
-## Set file vars
-#output_file_RGB = out_dir+basename+'_RGB_SAC_PAN.TIF'
-
-## Create gtif
-#driver = gdal.GetDriverByName("GTiff")
-#dst_ds = driver.Create(output_file_RGB, Nx, Ny, 3 , gdal.GDT_UInt16)
-
-## top left x, w-e pixel resolution, rotation, top left y, rotation, n-s pixel resolution
-#dst_ds.SetGeoTransform( [ X, deltaX, rotation, Y, rotation, deltaY ] )
-
-## set the reference info 
-#srs = osr.SpatialReference()
-#srs.SetWellKnownGeogCS("WGS84")
-#dst_ds.SetProjection( srs_wkt )
-
-# write the band
-
-#dst_ds.GetRasterBand(1).WriteArray(pan_sharp_red)
-#dst_ds.GetRasterBand(2).WriteArray(pan_sharp_green)
-#dst_ds.GetRasterBand(3).WriteArray(pan_sharp_blue)
 
 ##########################################
 
@@ -1227,16 +816,6 @@ else:
 	out_image_name_jpeg=in_path+'/'+basename+'_RGB_AC_PAN_CC_SUB.jpeg'
 
 
-## Create gtif
-#driver = gdal.GetDriverByName("GTiff")
-#dst_ds = driver.Create(out_image_name_tif, Nx, Ny, 3 , gdal.GDT_Byte)
-## top left x, w-e pixel resolution, rotation, top left y, rotation, n-s pixel resolution
-#dst_ds.SetGeoTransform( [ X, deltaX, rotation, Y, rotation, deltaY ] )
-## set the reference info
-#srs = osr.SpatialReference()
-#srs.SetWellKnownGeogCS("WGS84")
-#dst_ds.SetProjection( srs_wkt )
-
 # The radiance values are quite a bit smaller than the reflectance values (once they are converted to integers)
 # The scaling does not work particularly well when most of the nubers are under 100.0
 # As we only want to produce a picture at this stage, make the numbers bigger by multiplication.
@@ -1244,66 +823,48 @@ else:
 if do_AC==1:
 
     print ('Now Scaling red band....\n\n\n')
-    #ary_scaled=log_bright(pan_sharp_red)
     # Another , probably better, way to brighten images
     red = gamma(np.clip(pan_sharp_red.astype(float)/np.max(pan_sharp_red.astype(float))*255.0, 0,255), im_gamma_red)
         
-    #red=ary_scaled/np.max(ary_scaled)*255.0
     jr=Image.fromarray(red.astype(np.uint8),mode='L')
     jr.save(out_dir+'/Landsat_red.bmp')
-    #dst_ds.GetRasterBand(1).WriteArray(red.astype(byte))
 
     print ('Now scaling green band.... \n\n\n')
-    #ary_scaled=log_bright(pan_sharp_green)
-    #green=ary_scaled/np.max(ary_scaled)*255.0
     # Another , probably better, way to brighten images
     green = gamma(np.clip(pan_sharp_green.astype(float)/np.max(pan_sharp_green.astype(float))*255.0,0,255), im_gamma_green)
     jg=Image.fromarray(green.astype(np.uint8),mode='L')
     jg.save(out_dir+'/Landsat_green.bmp')
-    #dst_ds.GetRasterBand(2).WriteArray(green.astype(byte))
 
     print ('Now scaling blue band.... \n\n\n')
-    #ary_scaled=log_bright(pan_sharp_blue)
-    #blue=ary_scaled/np.max(ary_scaled)*255.0
     # Another , probably better, way to brighten images
     blue = gamma(np.clip(pan_sharp_blue.astype(float)/np.max(pan_sharp_blue.astype(float))*255.0, 0,255), im_gamma_blue)
     jb=Image.fromarray(blue.astype(np.uint8),mode='L')
     jb.save(out_dir+'/Landsat_blue.bmp')
-    #dst_ds.GetRasterBand(3).WriteArray(blue.astype(byte))
 
 else:
 	
     rad_scl_fact=10
 
     print ('Now Scaling red band....\n\n\n')
-    #ary_scaled=log_bright(pan_sharp_red*rad_scl_fact)
-    #red=ary_scaled/np.max(ary_scaled)*255.0
 
     red = gamma(np.clip(pan_sharp_red/np.max(pan_sharp_red)*255.0, 0,255), im_gamma_red)        
 
     jr=Image.fromarray(red.astype(np.uint8))
     jr.save(out_dir+'/Landsat_red.bmp')
-    #dst_ds.GetRasterBand(1).WriteArray(red.astype(byte))
 
     print ('Now scaling green band.... \n\n\n')
-    #ary_scaled=log_bright(pan_sharp_green*rad_scl_fact)
-    #green=ary_scaled/np.max(ary_scaled)*255.0
 
     green = gamma(np.clip(pan_sharp_green/np.max(pan_sharp_green)*255.0,0,255), im_gamma_green)
 
     jg=Image.fromarray(green.astype(np.uint8))
     jg.save(out_dir+'/Landsat_green.bmp')
-    #dst_ds.GetRasterBand(2).WriteArray(green.astype(byte))
 
     print ('Now scaling blue band.... \n\n\n')
-    #ary_scaled=log_bright(pan_sharp_blue*rad_scl_fact)
-    #blue=ary_scaled/np.max(ary_scaled)*255.0
 
     blue = gamma(np.clip(pan_sharp_blue/np.max(pan_sharp_blue)*255.0, 0,255), im_gamma_blue)
 
     jb=Image.fromarray(blue.astype(np.uint8))
     jb.save(out_dir+'/Landsat_blue.bmp')
-    #dst_ds.GetRasterBand(3).WriteArray(blue.astype(byte))
 
 # Use PIL to merge the RGB, adjust contrast and save the image
 # Or you can use imagemagick (the system calls)
