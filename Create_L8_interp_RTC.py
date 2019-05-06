@@ -1,7 +1,6 @@
 import getopt, sys, math, os, glob, fnmatch
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
 import netCDF4
 from pylab import *
 from scipy import *
