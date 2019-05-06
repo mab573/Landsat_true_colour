@@ -23,7 +23,7 @@
 
 from osgeo import gdal
 from osgeo import osr
-import matplotlib as plt
+#import matplotlib as plt
 from pylab import *
 import numpy as np
 import getopt, sys, math, os, glob, re, subprocess
@@ -45,6 +45,9 @@ import Simple_Pan_Sharpen as pan
 import Create_L8_interp_RTC as C_RTC
 import solar_pos as sol_p
 import ContEnh
+
+## Written by Passang (3/5/19)
+import calc_sat_solar
 
 # This stuff is used to adjust brightness and contrast
 # May help, may not.
@@ -78,92 +81,92 @@ s_enh=1.5
 #***************<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>********************
 
 def usage ():
-	print '\n\n\n'
-	print '###################################################################################################################'
-	print '###################################################################################################################'
-	print 'This program is designed to work with Landsat8 datasets downloaded from the USGS (http://earthexplorer.usgs.gov/).'
-	print 'You may be able to get the files in exactly the same format elsewhere, I have never bothered.'
-	print '\n'
-	print 'These files are in a tarred and zipped file and contain all 11 bands, a QA band and a metadata file'
-	print '\n'
-	print 'This code will do the following with the following options:\n'
-	print '-z [.tar.gz file] -- Extract all bands, write these to a directory and produce an output image.\n'
-	print '-s [UL lat,UL lon,LR lat,LR lon] -- Enter like -21.5,115.3,-22.5,115.8 and the code will subset all bands'
-	print '					   and write them to a directory. It will produce an output image for the'
-	print '					   subset. Southern latitudes are -ve, Western longitudes are -ve.\n'
-	print '-c -- This will perform atmospheric correction on the bands used to produce the colour image'
-	print '	     (bands 4,3,2 and 8 or red, green, blue and panchromatic). If you do not have MODTRAN5 installed'
-	print '	     on your system then just ignore this option. If you do you will need to alter the code so that'
-	print '	     VIR_SRF, tape5_dir, data_dir and MOD_exe point to the correct places. This is the responsibility'
-	print '	     of the user.\n'
-        print '-p -- Set this and the images will be pan sharpened to 15 m resolution pixels, otherwise do at the native resolution\n' 
-	print '-b [a number] -- Enter a number to control how much the image is brightened. This is done for the output'
-	print '			image and will depend on the range of values in the image so a full swath and a subset'
-	print '			will likely scale differently. The impact of the scaling factor will also change depending'
-	print '			on which type of data is scaled (radiance or reflectance).'
-	print '			This scaling is similar to the gamma correction that many software packages can do. Entering'
-	print '			a small number (0.00001) will give an almost linear transform with a gradient of 1 which'
-	print '			does nothing. With reflectance data, numbers greater than about 0.01 and less than 0.5 will'
-	print '			in general make the image as bright as you will ever want. You may need to use numbers'
-	print '			greater than 1 for radiance data.\n'
-	print '-t -- If you image the full swath or the subset is at the edge of the swath, you will get a black boarder'
-	print '	     around your image. This switch will make the image boarder transparent. This should be used with some'
-	print '	     caution as this process makes black pixels transparent. Reflectance products especially will have'
-	print '	     black pixels where there are significant shadows i.e. behinds hills and mountains.\n'
-	print '-k -- This will keep all interim files and directories otherwise you will be left with the image and the .tar.gz'
-	print '	     file. The program will create a directory from the name of the .tar.gz file and a sub directory'
-	print '	     called simple_AC. The top level created directory will contain the bands extracted from the'
-	print '	     archive file as GEOTIF files as well as subsetted versions of these bands if you selected the -s option.'
-	print '	     The simple_AC folder will contain .TIF files for either bands 4,3,2,8 reflectance or radiance depending'
-	print '	     on the -c option and a .TIF file with bands 4,3,2 pan sharpened to 15m either as radiance or reflectance.'
-	print '	     You may want to keep these interim files to do something else with.\n'
-	print '-l -- This will output a logo to the bottom left hand corner of the image. It makes no attempt to resize'
-	print '	     the logo so if the subset is small it may cover most of the image. If you image the entire swath'
-	print '	     the logo will be very small and either copy over the black or tranparent swath boarder. If you'
-	print '	     want to use this option you need to alter the code so that logo_file points to your logo file location.\n'
-	print '-f [format extension] -- What format do you want your image in? This will output png, bmp, eps, jpeg and geotiff.'
-	print '				Enter as png, bmp, jpeg or tiff. Default will output bmp.'
-	print '-r -- This will save 30 m atmosperically corrected data as Rrs (pixel reflectances divided by pi). Default is not'
-	print '      to save Rrs' 
- 	print '###################################################################################################################'
-	print '###################################################################################################################'
-	print '\n\n\n'  
+	print ('\n\n\n')
+	print ('###################################################################################################################')
+	print ('###################################################################################################################')
+	print ('This program is designed to work with Landsat8 datasets downloaded from the USGS (http://earthexplorer.usgs.gov/).')
+	print ('You may be able to get the files in exactly the same format elsewhere, I have never bothered.')
+	print ('\n')
+	print ('These files are in a tarred and zipped file and contain all 11 bands, a QA band and a metadata file')
+	print ('\n')
+	print ('This code will do the following with the following options:\n')
+	print ('-z [.tar.gz file] -- Extract all bands, write these to a directory and produce an output image.\n')
+	print ('-s [UL lat,UL lon,LR lat,LR lon] -- Enter like -21.5,115.3,-22.5,115.8 and the code will subset all bands')
+	print ('					   and write them to a directory. It will produce an output image for the')
+	print ('					   subset. Southern latitudes are -ve, Western longitudes are -ve.\n')
+	print ('-c -- This will perform atmospheric correction on the bands used to produce the colour image')
+	print ('	     (bands 4,3,2 and 8 or red, green, blue and panchromatic). If you do not have MODTRAN5 installed')
+	print ('	     on your system then just ignore this option. If you do you will need to alter the code so that')
+	print ('	     VIR_SRF, tape5_dir, data_dir and MOD_exe point to the correct places. This is the responsibility')
+	print ('	     of the user.\n')
+	print ('-p -- Set this and the images will be pan sharpened to 15 m resolution pixels, otherwise do at the native resolution\n') 
+	print ('-b [a number] -- Enter a number to control how much the image is brightened. This is done for the output')
+	print ('			image and will depend on the range of values in the image so a full swath and a subset')
+	print ('			will likely scale differently. The impact of the scaling factor will also change depending')
+	print ('			on which type of data is scaled (radiance or reflectance).')
+	print ('			This scaling is similar to the gamma correction that many software packages can do. Entering')
+	print ('			a small number (0.00001) will give an almost linear transform with a gradient of 1 which')
+	print ('			does nothing. With reflectance data, numbers greater than about 0.01 and less than 0.5 will')
+	print ('			in general make the image as bright as you will ever want. You may need to use numbers')
+	print ('			greater than 1 for radiance data.\n')
+	print ('-t -- If you image the full swath or the subset is at the edge of the swath, you will get a black boarder')
+	print ('	     around your image. This switch will make the image boarder transparent. This should be used with some')
+	print ('	     caution as this process makes black pixels transparent. Reflectance products especially will have')
+	print ('	     black pixels where there are significant shadows i.e. behinds hills and mountains.\n')
+	print ('-k -- This will keep all interim files and directories otherwise you will be left with the image and the .tar.gz')
+	print ('	     file. The program will create a directory from the name of the .tar.gz file and a sub directory')
+	print ('	     called simple_AC. The top level created directory will contain the bands extracted from the')
+	print ('	     archive file as GEOTIF files as well as subsetted versions of these bands if you selected the -s option.')
+	print ('	     The simple_AC folder will contain .TIF files for either bands 4,3,2,8 reflectance or radiance depending')
+	print ('	     on the -c option and a .TIF file with bands 4,3,2 pan sharpened to 15m either as radiance or reflectance.')
+	print ('	     You may want to keep these interim files to do something else with.\n')
+	print ('-l -- This will output a logo to the bottom left hand corner of the image. It makes no attempt to resize')
+	print ('	     the logo so if the subset is small it may cover most of the image. If you image the entire swath')
+	print ('	     the logo will be very small and either copy over the black or tranparent swath boarder. If you')
+	print ('	     want to use this option you need to alter the code so that logo_file points to your logo file location.\n')
+	print ('-f [format extension] -- What format do you want your image in? This will output png, bmp, eps, jpeg and geotiff.')
+	print ('				Enter as png, bmp, jpeg or tiff. Default will output bmp.')
+	print ('-r -- This will save 30 m atmosperically corrected data as Rrs (pixel reflectances divided by pi). Default is not')
+	print ('      to save Rrs') 
+	print ('###################################################################################################################')
+	print ('###################################################################################################################')
+	print ('\n\n\n')  
 	
 
 try:
 	opts, args = getopt.getopt(sys.argv[1:], "hz:cps:b:tklf:r", ["help", "zip_file","AC","pan","subset","bright","trans","keep","logo","format","Rrs"])
 
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
         # print help information and exit:
-        print str(err) # will print something like "option -a not recognized"
+        print (str(err)) # will print something like "option -a not recognized"
         usage()
         sys.exit(2)
 
 for o, a in opts:
-	if o == "-v":
+        if o == "-v":
             verbose = True
         elif o in ("-h", "--help"):
             usage()
             sys.exit()
         elif o in ("-z", "--zip_file"):
             zip_file = a
-	elif o in ("-c", "--AC"):
+        elif o in ("-c", "--AC"):
             AC = a
         elif o in ("-p", "--pan"):
             pan = a
         elif o in ("-s", "--subset"):
             subset = a
-	elif o in ("-b", "--bright"):
+        elif o in ("-b", "--bright"):
             bright = a
-	elif o in ("-t", "--trans"):
+        elif o in ("-t", "--trans"):
             trans = a
-	elif o in ("-k", "--keep"):
+        elif o in ("-k", "--keep"):
             keep = a
-	elif o in ("-l", "--logo"):
+        elif o in ("-l", "--logo"):
             logo = a
-	elif o in ("-f", "--format"):
+        elif o in ("-f", "--format"):
             format = a
-	elif o in ("-r", "--Rrs"):
+        elif o in ("-r", "--Rrs"):
             Rrs = a
         else:
             assert False, "unhandled option"
@@ -232,10 +235,10 @@ def open_geotiff(filename):
     srs_wkt = ds.GetProjection()
     Nx = ds.RasterXSize
     Ny = ds.RasterYSize
-    print srs_wkt
-    print X, deltaX, rotation, Y, rotation, deltaY
-    print Nx,Ny
-    print ' '
+    #print srs_wkt
+    #print X, deltaX, rotation, Y, rotation, deltaY
+    #print Nx,Ny
+    #print ' '
     ary = []
     ary = ds.GetRasterBand(1).ReadAsArray()
     return ary
@@ -341,7 +344,7 @@ LS_B9_sub=out_dir_top+'/'+basename+'_sub_B9.TIF'
 LS_B10_sub=out_dir_top+'/'+basename+'_sub_B10.TIF'
 LS_B11_sub=out_dir_top+'/'+basename+'_sub_B11.TIF'
 
-print 'Extracting landsat raster files from the archive file - if required\n\n\n'
+print ('Extracting landsat raster files from the archive file - if required\n\n\n')
 # Untar and unzip L8 file, create an output directory
 out_dir=in_path+'/'+basename+'/simple_AC/'
 if not os.path.isfile(LS_B1):
@@ -351,7 +354,7 @@ if not os.path.isfile(LS_B1):
 try:
   bright
 except NameError:
-  print '\n\n\n Image brightening scaling factor has not been set, automatically set to 0.1\n\n\n'
+  print ('\n\n\n Image brightening scaling factor has not been set, automatically set to 0.1\n\n\n')
   bright=np.float(0.1)
   bright=np.float(1.0)
 
@@ -417,33 +420,33 @@ new_list = [j for j in meta_file_lines if re.search(sun_az_tags, j)]
 for item in new_list:
     thingy=item.split('=')
     sun_az=float(thingy[1])
-    print 'Solar azimuth ',sun_az
+    #print 'Solar azimuth ',sun_az
     
 new_list = [j for j in meta_file_lines if re.search(sun_el_tags, j)]
 for item in new_list:
     thingy=item.split('=')
     sun_el=float(thingy[1])
-    print 'Solar elevation ', sun_el
+    #print 'Solar elevation ', sun_el
 
 new_list = [j for j in meta_file_lines if re.search(sun_dist_tags, j)]
 for item in new_list:
     thingy=item.split('=')
     sun_dist=float(thingy[1])
-    print 'Earth-Sun distance ',sun_dist
+    #print 'Earth-Sun distance ',sun_dist
 
 new_list = [j for j in meta_file_lines if re.search(scene_cent_time, j)]
 for item in new_list:
     thingy=item.split('=')
     scene_time=thingy[1]
     scene_time=scene_time[2:-2]
-    print 'tile time ', scene_time
+    #print 'tile time ', scene_time
 
 new_list = [j for j in meta_file_lines if re.search(date, j)]
 for item in new_list:
     thingy=item.split('=')
     scene_date=thingy[1]
     scene_date=scene_date[2:-2]
-    print 'tile date ', scene_time
+    #print 'tile date ', scene_time
 
 new_list = [j for j in meta_file_lines if re.search(file_name, j)]
 for item in new_list:
@@ -530,11 +533,11 @@ sec_split=ST_split[2].split('.')
 scene_time_float=float(ST_split[0])+float(ST_split[1])/60.0+float(sec_split[0])/3600.0
 scene_time="%.3f" % scene_time_float
 
-print 'UL Lat ',UL_lat_co
-print 'LR_lat ',LR_lat_co
-print 'LR_lon ',LR_lon_co
-print 'Tile centre coordinates '+str(centre_lat)+' '+str(centre_lon)
-print 'Tile time ',scene_time
+#print 'UL Lat ',UL_lat_co
+#print 'LR_lat ',LR_lat_co
+#print 'LR_lon ',LR_lon_co
+#print 'Tile centre coordinates '+str(centre_lat)+' '+str(centre_lon)
+#print 'Tile time ',scene_time
 
 
 #### If the subset switch is used then get everything in the right format so that it can be 
@@ -546,7 +549,7 @@ print 'Tile time ',scene_time
 try:
   subset
 except NameError:
-  print '\n\n\n Subsetting has not been selected, imaging the entire tile with brighness factor ',bright,'\n\n\n'
+  print ('\n\n\n Subsetting has not been selected, imaging the entire tile with brighness factor ',bright,'\n\n\n')
   do_sub=0
 else:
   do_sub=1 	
@@ -568,46 +571,46 @@ else:
 
 for ii in range(0,len(rad_scale_tags)):
 
-	new_list = [j for j in meta_file_lines if re.search(rad_scale_tags[ii], j)]
-	for item in new_list:
+    new_list = [j for j in meta_file_lines if re.search(rad_scale_tags[ii], j)]
+    for item in new_list:
 
-		thingy=item.split('=')
-		stuff=thingy[0].split('_')
+        thingy=item.split('=')
+        stuff=thingy[0].split('_')
 
-		if stuff[3].rstrip() == '1':
+        if stuff[3].rstrip() == '1':
 
-    			rad_scale.append(float(thingy[1]))
+            rad_scale.append(float(thingy[1]))
 
-		elif stuff[3].rstrip() <> '10' and stuff[3].rstrip() <> '11':
+        elif stuff[3].rstrip() != '10' and stuff[3].rstrip() != '11':
 
-    			rad_scale.append(float(thingy[1]))	
+            rad_scale.append(float(thingy[1]))	
 
-	new_list = [j for j in meta_file_lines if re.search(rad_offset_tags[ii], j)]
-	for item in new_list:
+    new_list = [j for j in meta_file_lines if re.search(rad_offset_tags[ii], j)]
+    for item in new_list:
     		
-		thingy=item.split('=')
-		stuff=thingy[0].split('_')
+        thingy=item.split('=')
+        stuff=thingy[0].split('_')
 
-		if stuff[3].rstrip() == '1':
+        if stuff[3].rstrip() == '1':
 
-    			rad_offset.append(float(thingy[1]))
+            rad_offset.append(float(thingy[1]))
 
-		elif stuff[3].rstrip() <> '10' and stuff[3].rstrip() <> '11':
+        elif stuff[3].rstrip() != '10' and stuff[3].rstrip() != '11':
 
-			thingy=item.split('=')
-    			rad_offset.append(float(thingy[1]))
+            thingy=item.split('=')
+            rad_offset.append(float(thingy[1]))
 
-	new_list = [j for j in meta_file_lines if re.search(ref_scale_tags[ii], j)]
-	for item in new_list:
+    new_list = [j for j in meta_file_lines if re.search(ref_scale_tags[ii], j)]
+    for item in new_list:
 
-    		thingy=item.split('=')
-    		ref_scale.append(float(thingy[1]))
+        thingy=item.split('=')
+        ref_scale.append(float(thingy[1]))
 
-	new_list = [j for j in meta_file_lines if re.search(ref_offset_tags[ii], j)]
-	for item in new_list:
+    new_list = [j for j in meta_file_lines if re.search(ref_offset_tags[ii], j)]
+    for item in new_list:
     			
-		thingy=item.split('=')
-    		ref_offset.append(float(thingy[1]))
+        thingy=item.split('=')
+        ref_offset.append(float(thingy[1]))
 
 # Write tape5 files based on the information from the metadata file. This will be scene centre position, day of year of the scene, scene centre time of acquisition.
 # This will used fixed inputs for water vapour, aerosol, atmospheric pressure and so on.
@@ -618,13 +621,13 @@ try:
 except NameError:
 
   ### No need to call MODTRAN, so dont.
-  print '\n\n\n Atmospheric correction has not been selected. Processing radiance data instead \n\n\n'
+  print ('\n\n\n Atmospheric correction has not been selected. Processing radiance data instead \n\n\n')
 
   do_AC=0
 
 else:
   
-  print '\n\n\n Atmospherically correcting radiance data to surface reflectance. \n\n\n'
+  print ('\n\n\n Atmospherically correcting radiance data to surface reflectance. \n\n\n')
 
   # None of this is required anymore as I have a LUT
   #tape5_dir=out_dir
@@ -652,14 +655,14 @@ try:
 except NameError:
 
   ### No need to call MODTRAN, so dont.
-  print '\n\n\n Pan sharpening the image. \n\n\n'
+  print ('\n\n\n Pan sharpening the image. \n\n\n')
 
   do_pan=1
 
 else:
 
   do_pan=0
-  print '\n\n\n Not pan sharpening the images. \n\n\n'
+  print ('\n\n\n Not pan sharpening the images. \n\n\n')
 
 
 try:
@@ -667,14 +670,14 @@ try:
 except NameError:
 
   ### No need to call MODTRAN, so dont.
-  print '\n\n\n Not saving the first 4 bands as Rrs. \n\n\n'
+  print ('\n\n\n Not saving the first 4 bands as Rrs. \n\n\n')
 
   do_Rrs=0
 
 else:
 
   do_Rrs=1
-  print '\n\n\n Saving the first 4 bands as Rrs. \n\n\n'
+  print ('\n\n\n Saving the first 4 bands as Rrs. \n\n\n')
 
 
 # Temporary hard coded path
@@ -717,9 +720,42 @@ SA_sub_B8=path+'SOLAR-AZIMUTH_sub_B8.TIF'
 
 if do_sub == 1:
 
+    if do_pan == 1:
+        ## Subset at 15 m resolution
+        Bands = ['B2', 'B3', 'B4', 'B8']
+        VZA,SZA,VAA,SAA,B2,B3,B4,B8=calc_sat_solar.main(zip_file, path, subset, Bands)
+
+    else:
+        ## Subset at native resolution and we dont need the pan band
+        Bands = ['B2', 'B3', 'B4']
+        VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, subset, Bands)
+
+else:
+
+    LS_B1_sub=LS_B1
+    LS_B2_sub=LS_B2
+    LS_B3_sub=LS_B3
+    LS_B4_sub=LS_B4
+    LS_B5_sub=LS_B5
+    LS_B6_sub=LS_B6
+    LS_B7_sub=LS_B7
+    LS_B8_sub=LS_B8
+    LS_B9_sub=LS_B9
+    LS_B10_sub=LS_B10
+    LS_B11_sub=LS_B11
+
+    VZA_sub=VZA
+    SZA_sub=SZA
+    VA_sub=VA
+    SA_sub=SA
+
+sys.exit()
+
+if do_sub == 1:
+
     if do_pan ==1:
-        print 'Subsetting the scene with upper left geographic coordinates',ulat,ulon,' UTM ',ul_E,ul_N
-        print 'and low right geographic coordinates ',llat,llon,' UTM ',lr_E,lr_N,' with brightening factor ',bright,'\n\n\n'
+        print ('Subsetting the scene with upper left geographic coordinates',ulat,ulon,' UTM ',ul_E,ul_N)
+        print ('and low right geographic coordinates ',llat,llon,' UTM ',lr_E,lr_N,' with brightening factor ',bright,'\n\n\n')
 
         os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B1,LS_B1_sub))
         os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B2,LS_B2_sub))
@@ -740,8 +776,8 @@ if do_sub == 1:
         os.system('gdal_translate  -tr 15 15 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, SA,SA_sub_B8))
 
     else:
-        print 'Subsetting the scene with upper left geographic coordinates',ulat,ulon,' UTM ',ul_E,ul_N
-        print 'and low right geographic coordinates ',llat,llon,' UTM ',lr_E,lr_N,' with brightening factor ',bright,'\n\n\n'
+        print ('Subsetting the scene with upper left geographic coordinates',ulat,ulon,' UTM ',ul_E,ul_N)
+        print ('and low right geographic coordinates ',llat,llon,' UTM ',lr_E,lr_N,' with brightening factor ',bright,'\n\n\n')
  
         os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B1,LS_B1_sub))
         os.system('gdal_translate  -tr 30 30 -projwin %s %s %s %s %s -b 1 %s' %(ul_E, ul_N, lr_E, lr_N, LS_B2,LS_B2_sub))
@@ -807,7 +843,7 @@ RTC_dir='/short/er8/mab573/Landsat/RTC/'
 
 if do_AC==1:
 
-	print 'Atmosperically compensating for band 4 ....\n\n'
+	print ('Atmosperically compensating for band 4 ....\n\n')
 	rho=Landsat8_atmospheric_correction.Landsat_ATCOR(rad_arr, 4, RTC_dir)
 
 	# Remove any negative values
@@ -825,7 +861,7 @@ else:
 # Write reflectance array to a Geotiff file
 
 # Set file vars
-print out_dir
+
 output_file_B4 = out_dir+basename+'_B4_SAC.TIF'
 
 # Create gtif
@@ -858,7 +894,7 @@ rad_arr=(ary[:].astype(float)*rad_scale[2])+rad_offset[2]
 
 if do_AC==1:
 
-	print 'Atmosperically compensating for band 3 ....\n\n'
+	print ('Atmosperically compensating for band 3 ....\n\n')
 	rho=Landsat8_atmospheric_correction.Landsat_ATCOR(rad_arr, 3, RTC_dir)
 	rho_out_b3 = np.empty((Ny,Nx),dtype=int)
 	np.clip(rho,0, max_refl, out=rho_out_b3)
@@ -906,7 +942,7 @@ rad_arr=(ary[:].astype(float)*rad_scale[1])+rad_offset[1]
 
 if do_AC==1:
 
-	print 'Atmospherically compensating for band 2....\n\n'
+	print ('Atmospherically compensating for band 2....\n\n')
 	rho=Landsat8_atmospheric_correction.Landsat_ATCOR(rad_arr, 2, RTC_dir)
 	rho_out_b2 = np.empty((Ny,Nx),dtype=int)
 	np.clip(rho,0, max_refl, out=rho_out_b2)
@@ -1036,42 +1072,42 @@ dst_ds.GetRasterBand(3).WriteArray(band1)
 
 if do_AC==1:
 
-	if do_Rrs==1:
+    if do_Rrs==1:
 
-		Rrs_file_Lo_res = out_dir+basename+'_Rrs_SAC.TIF'
+        Rrs_file_Lo_res = out_dir+basename+'_Rrs_SAC.TIF'
 
-		# Create gtif
-		driver = gdal.GetDriverByName("GTiff")
-		dst_ds = driver.Create(Rrs_file_Lo_res, Nx, Ny, 4 , gdal.GDT_UInt16)
+        # Create gtif
+        driver = gdal.GetDriverByName("GTiff")
+        dst_ds = driver.Create(Rrs_file_Lo_res, Nx, Ny, 4 , gdal.GDT_UInt16)
 
-		# top left x, w-e pixel resolution, rotation, top left y, rotation, n-s pixel resolution
-		dst_ds.SetGeoTransform( [ X, deltaX, rotation, Y, rotation, deltaY ] )
+        # top left x, w-e pixel resolution, rotation, top left y, rotation, n-s pixel resolution
+        dst_ds.SetGeoTransform( [ X, deltaX, rotation, Y, rotation, deltaY ] )
 
-		# set the reference info 
-		srs = osr.SpatialReference()
-		srs.SetWellKnownGeogCS("WGS84")
-		dst_ds.SetProjection( srs_wkt )
+        # set the reference info 
+        srs = osr.SpatialReference()
+        srs.SetWellKnownGeogCS("WGS84")
+        dst_ds.SetProjection( srs_wkt )
 
-		# write the band
+        # write the band
 
-		#g = gdal.Open(output_file_B1) # Coastal band
-                #band1 = g.ReadAsArray()
-                dst_ds.GetRasterBand(1).WriteArray(Rrs_out_b1)
+        #g = gdal.Open(output_file_B1) # Coastal band
+        #band1 = g.ReadAsArray()
+        dst_ds.GetRasterBand(1).WriteArray(Rrs_out_b1)
 
-		#g = gdal.Open(output_file_B2) # blue band
-		#band1 = g.ReadAsArray()
-		dst_ds.GetRasterBand(2).WriteArray(Rrs_out_b2)
+        #g = gdal.Open(output_file_B2) # blue band
+        #band1 = g.ReadAsArray()
+        dst_ds.GetRasterBand(2).WriteArray(Rrs_out_b2)
 
-		#g = gdal.Open(output_file_B3) # green band
-		#band1 = g.ReadAsArray()
-		dst_ds.GetRasterBand(3).WriteArray(Rrs_out_b3)
+        #g = gdal.Open(output_file_B3) # green band
+        #band1 = g.ReadAsArray()
+        dst_ds.GetRasterBand(3).WriteArray(Rrs_out_b3)
 
-		#g = gdal.Open(output_file_B4) # red band
-		#band1 = g.ReadAsArray()
-		dst_ds.GetRasterBand(4).WriteArray(Rrs_out_b4)
+        #g = gdal.Open(output_file_B4) # red band
+        #band1 = g.ReadAsArray()
+        dst_ds.GetRasterBand(4).WriteArray(Rrs_out_b4)
 
 
-		print '\n\n\n Saving Rrs files to multiband geotiff file \n\n\n'
+        print ('\n\n\n Saving Rrs files to multiband geotiff file \n\n\n')
 
 
 
@@ -1092,7 +1128,7 @@ rad_arr=(ary[:].astype(float)*rad_scale[7])+rad_offset[7]
 if do_AC==1:
 
     if do_pan==1:
-        print 'Atmospherically compensating for band 8....\n\n'
+        print ('Atmospherically compensating for band 8....\n\n')
 
         ## This is a hack but the band8 rad array is always a different shape to the
         ## RTC arrays. Need to pad in one direction and take in the other
@@ -1133,7 +1169,7 @@ else:
 ############# Pan sharpen using Brovey (or something like it) transform
 
 if do_pan ==1:
-    print 'Performing pan sharpening using simple Brovey transform\n\n'
+    print ('Performing pan sharpening using simple Brovey transform\n\n')
 
     pan_sharp_blue, pan_sharp_green, pan_sharp_red=pan.Simple_Pan_Sharpen(rho_out_b2, rho_out_b3, rho_out_b4, rho_out_b8)
 
@@ -1199,67 +1235,67 @@ else:
 
 if do_AC==1:
 
-	print 'Now Scaling red band....\n\n\n'
-        #ary_scaled=log_bright(pan_sharp_red)
-        # Another , probably better, way to brighten images
-        red = gamma(np.clip(pan_sharp_red.astype(float)/np.max(pan_sharp_red.astype(float))*255.0, 0,255), im_gamma_red)
+    print ('Now Scaling red band....\n\n\n')
+    #ary_scaled=log_bright(pan_sharp_red)
+    # Another , probably better, way to brighten images
+    red = gamma(np.clip(pan_sharp_red.astype(float)/np.max(pan_sharp_red.astype(float))*255.0, 0,255), im_gamma_red)
         
-        #red=ary_scaled/np.max(ary_scaled)*255.0
-        jr=Image.fromarray(red.astype(np.uint8),mode='L')
-        jr.save(out_dir+'/Landsat_red.bmp')
-        #dst_ds.GetRasterBand(1).WriteArray(red.astype(byte))
+    #red=ary_scaled/np.max(ary_scaled)*255.0
+    jr=Image.fromarray(red.astype(np.uint8),mode='L')
+    jr.save(out_dir+'/Landsat_red.bmp')
+    #dst_ds.GetRasterBand(1).WriteArray(red.astype(byte))
 
-        print 'Now scaling green band.... \n\n\n'
-        #ary_scaled=log_bright(pan_sharp_green)
-        #green=ary_scaled/np.max(ary_scaled)*255.0
-        # Another , probably better, way to brighten images
-        green = gamma(np.clip(pan_sharp_green.astype(float)/np.max(pan_sharp_green.astype(float))*255.0,0,255), im_gamma_green)
-        jg=Image.fromarray(green.astype(np.uint8),mode='L')
-        jg.save(out_dir+'/Landsat_green.bmp')
-        #dst_ds.GetRasterBand(2).WriteArray(green.astype(byte))
+    print ('Now scaling green band.... \n\n\n')
+    #ary_scaled=log_bright(pan_sharp_green)
+    #green=ary_scaled/np.max(ary_scaled)*255.0
+    # Another , probably better, way to brighten images
+    green = gamma(np.clip(pan_sharp_green.astype(float)/np.max(pan_sharp_green.astype(float))*255.0,0,255), im_gamma_green)
+    jg=Image.fromarray(green.astype(np.uint8),mode='L')
+    jg.save(out_dir+'/Landsat_green.bmp')
+    #dst_ds.GetRasterBand(2).WriteArray(green.astype(byte))
 
-        print 'Now scaling blue band.... \n\n\n'
-        #ary_scaled=log_bright(pan_sharp_blue)
-        #blue=ary_scaled/np.max(ary_scaled)*255.0
-        # Another , probably better, way to brighten images
-        blue = gamma(np.clip(pan_sharp_blue.astype(float)/np.max(pan_sharp_blue.astype(float))*255.0, 0,255), im_gamma_blue)
-        jb=Image.fromarray(blue.astype(np.uint8),mode='L')
-        jb.save(out_dir+'/Landsat_blue.bmp')
-        #dst_ds.GetRasterBand(3).WriteArray(blue.astype(byte))
+    print ('Now scaling blue band.... \n\n\n')
+    #ary_scaled=log_bright(pan_sharp_blue)
+    #blue=ary_scaled/np.max(ary_scaled)*255.0
+    # Another , probably better, way to brighten images
+    blue = gamma(np.clip(pan_sharp_blue.astype(float)/np.max(pan_sharp_blue.astype(float))*255.0, 0,255), im_gamma_blue)
+    jb=Image.fromarray(blue.astype(np.uint8),mode='L')
+    jb.save(out_dir+'/Landsat_blue.bmp')
+    #dst_ds.GetRasterBand(3).WriteArray(blue.astype(byte))
 
 else:
 	
-	rad_scl_fact=10
+    rad_scl_fact=10
 
-	print 'Now Scaling red band....\n\n\n'
-	#ary_scaled=log_bright(pan_sharp_red*rad_scl_fact)
-	#red=ary_scaled/np.max(ary_scaled)*255.0
+    print ('Now Scaling red band....\n\n\n')
+    #ary_scaled=log_bright(pan_sharp_red*rad_scl_fact)
+    #red=ary_scaled/np.max(ary_scaled)*255.0
 
-        red = gamma(np.clip(pan_sharp_red/np.max(pan_sharp_red)*255.0, 0,255), im_gamma_red)        
+    red = gamma(np.clip(pan_sharp_red/np.max(pan_sharp_red)*255.0, 0,255), im_gamma_red)        
 
-	jr=Image.fromarray(red.astype(np.uint8))
-	jr.save(out_dir+'/Landsat_red.bmp')
-	#dst_ds.GetRasterBand(1).WriteArray(red.astype(byte))
+    jr=Image.fromarray(red.astype(np.uint8))
+    jr.save(out_dir+'/Landsat_red.bmp')
+    #dst_ds.GetRasterBand(1).WriteArray(red.astype(byte))
 
-	print 'Now scaling green band.... \n\n\n'
-	#ary_scaled=log_bright(pan_sharp_green*rad_scl_fact)
-	#green=ary_scaled/np.max(ary_scaled)*255.0
+    print ('Now scaling green band.... \n\n\n')
+    #ary_scaled=log_bright(pan_sharp_green*rad_scl_fact)
+    #green=ary_scaled/np.max(ary_scaled)*255.0
 
-        green = gamma(np.clip(pan_sharp_green/np.max(pan_sharp_green)*255.0,0,255), im_gamma_green)
+    green = gamma(np.clip(pan_sharp_green/np.max(pan_sharp_green)*255.0,0,255), im_gamma_green)
 
-	jg=Image.fromarray(green.astype(np.uint8))
-	jg.save(out_dir+'/Landsat_green.bmp')
-	#dst_ds.GetRasterBand(2).WriteArray(green.astype(byte))
+    jg=Image.fromarray(green.astype(np.uint8))
+    jg.save(out_dir+'/Landsat_green.bmp')
+    #dst_ds.GetRasterBand(2).WriteArray(green.astype(byte))
 
-	print 'Now scaling blue band.... \n\n\n'
-	#ary_scaled=log_bright(pan_sharp_blue*rad_scl_fact)
-	#blue=ary_scaled/np.max(ary_scaled)*255.0
+    print ('Now scaling blue band.... \n\n\n')
+    #ary_scaled=log_bright(pan_sharp_blue*rad_scl_fact)
+    #blue=ary_scaled/np.max(ary_scaled)*255.0
 
-        blue = gamma(np.clip(pan_sharp_blue/np.max(pan_sharp_blue)*255.0, 0,255), im_gamma_blue)
+    blue = gamma(np.clip(pan_sharp_blue/np.max(pan_sharp_blue)*255.0, 0,255), im_gamma_blue)
 
-	jb=Image.fromarray(blue.astype(np.uint8))
-	jb.save(out_dir+'/Landsat_blue.bmp')
-	#dst_ds.GetRasterBand(3).WriteArray(blue.astype(byte))
+    jb=Image.fromarray(blue.astype(np.uint8))
+    jb.save(out_dir+'/Landsat_blue.bmp')
+    #dst_ds.GetRasterBand(3).WriteArray(blue.astype(byte))
 
 # Use PIL to merge the RGB, adjust contrast and save the image
 # Or you can use imagemagick (the system calls)
@@ -1285,80 +1321,81 @@ try:
   trans
 except NameError:
 
-  print '\n\n\n Leaving image boarder black \n\n\n'
+  print ('\n\n\n Leaving image boarder black \n\n\n')
  
 else:
-  print '\n\n\n Making the image boarder transparent \n\n\n' 
+  print ('\n\n\n Making the image boarder transparent \n\n\n') 
   os.system("mogrify -transparent-color black -transparent black "+out_image_name)
 
 try:
-  logo
+    logo
 except NameError:
 
-  print '\n\n\n No logo \n\n\n'
+    print ('\n\n\n No logo \n\n\n')
 
 else:
 
-  if format=='tif':
+    if format=='tif':
 
-	print '\n\n\n Logo adding function does not work for geotiff. Sorry! \n\n\n'
+        print ('\n\n\n Logo adding function does not work for geotiff. Sorry! \n\n\n')
 
-  else:
-  	print '\n\n\n Logo added to bottom left hand corner of the screen \n\n\n'
+    else:
 
-  	os.system("convert "+out_image_name+" -gravity SouthWest "+logo_file+" -compose Over -composite "+out_image_name)
+        print ('\n\n\n Logo added to bottom left hand corner of the screen \n\n\n')
+
+        os.system("convert "+out_image_name+" -gravity SouthWest "+logo_file+" -compose Over -composite "+out_image_name)
 
 
 ## Convert output image png into other formats, as required (except geotiff which is done above)
 
 try:
-  format
+    format
 except NameError:
 
-  print 'Outputting final image to '+out_image_name+' as no option was selected.\n\n'
-  os.system("rm -fr "+out_image_name_tif)
+    print ('Outputting final image to '+out_image_name+' as no option was selected.\n\n')
+    os.system("rm -fr "+out_image_name_tif)
 
 else:
 
-  if format=='bmp':
+    if format=='bmp':
 
-	print 'Outputting final image to '+out_image_name+'\n\n'
-	os.system("rm -fr "+out_image_name_tif)
+        print ('Outputting final image to '+out_image_name+'\n\n')
+        os.system("rm -fr "+out_image_name_tif)
 
-  elif format=='png':
+    elif format=='png':
 	
-	print 'Outputting final image to '+out_image_name_png+'\n\n'
-  	os.system("convert "+out_image_name+" -compress none png:"+out_image_name_png)
-	os.system("rm -fr "+out_image_name)
-	os.system("rm -fr "+out_image_name_tif)
+        print ('Outputting final image to '+out_image_name_png+'\n\n')
+        os.system("convert "+out_image_name+" -compress none png:"+out_image_name_png)
+        os.system("rm -fr "+out_image_name)
+        os.system("rm -fr "+out_image_name_tif)
 
-  elif format=='jpeg':
+    elif format=='jpeg':
 
-	print 'Outputting final image to '+out_image_name_jpeg+'\n\n'
-  	os.system("convert "+out_image_name+" -compress none jpeg:"+out_image_name_jpeg)
-	os.system("rm -fr "+out_image_name)
-	os.system("rm -fr "+out_image_name_tif)
+        print ('Outputting final image to '+out_image_name_jpeg+'\n\n')
+        os.system("convert "+out_image_name+" -compress none jpeg:"+out_image_name_jpeg)
+        os.system("rm -fr "+out_image_name)
+        os.system("rm -fr "+out_image_name_tif)
 
-  elif format=='tif':
+    elif format=='tif':
 
-	print 'Outputting final image to '+out_image_name_tif+'\n\n'
-	os.system("rm -fr "+out_image_name)
+        print ('Outputting final image to '+out_image_name_tif+'\n\n')
+        os.system("rm -fr "+out_image_name)
 
-  else:
+    else:
 
-	print 'Outputting final image to '+out_image_name+' as your option was not recognised.\n\n'
-	os.system("rm -fr "+out_image_name_tif)
+        print ('Outputting final image to '+out_image_name+' as your option was not recognised.\n\n')
+        os.system("rm -fr "+out_image_name_tif)
 
 try:
   keep
 except NameError:
 
-  print '\n\n\n Deleting all of the interim files and directories. \n\n\n'
+  print ('\n\n\n Deleting all of the interim files and directories. \n\n\n')
   os.system("rm -fr "+out_dir_top)
 
 else:
 
-  print '\n\n\n Interim processing files have not been deleted. \n\n\n'
+  print ('\n\n\n Interim processing files have not been deleted. \n\n\n')
 
 
 ts_1 = time.time()

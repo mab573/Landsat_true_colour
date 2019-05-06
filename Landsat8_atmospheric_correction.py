@@ -26,8 +26,8 @@
 
 import matplotlib
 import matplotlib.pyplot as plt
-import pyhdf
-from pyhdf.SD import *
+#import pyhdf
+#from pyhdf.SD import *
 import numpy as np
 from scipy import *
 from scipy import integrate
@@ -49,11 +49,8 @@ def get_RTC(fileName, varName):
 
 def Landsat_ATCOR(LS_rad, band, RTC_dir):
    
-    print band,RTC_dir
  
     fileName=RTC_dir+'Band'+str(band)+'_L8_RTC_interpolated_values.nc'
-
-    print fileName 
 
     band_Lp_0 = get_RTC(fileName, 'Lp_0')
     band_Eg_0 = get_RTC(fileName, 'Eg_0')
@@ -64,16 +61,15 @@ def Landsat_ATCOR(LS_rad, band, RTC_dir):
     ## This can be adapted later to use fully interpolated rasters for the atmospheric components
     ## Initially just use the centre coordinate and find the nearest table entry
 
-    print 'Performing atmospheric compensation.......'
-    print ' '
+    print('Performing atmospheric compensation.......\n')
 
     # I think a scaling factor 10 will work as Hyperion has the same units and the DN had to be scaled by 40 to get to radiance and I had 400 as the scaling factor			
     A=(math.pi*((LS_rad/10.0)-(band_Lp_0)))/((band_Eg_0)*band_Gamma_up)
     rho=np.around(((A)/(1+(A*band_S)))*10000.0, decimals=0)
 
 			
-    print '                                   .......Completed atmospheric compensation'
-    print ' '
+    print ('                                   .......Completed atmospheric compensation\n')
+
 	
     return rho
 

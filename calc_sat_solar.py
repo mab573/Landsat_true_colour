@@ -151,7 +151,6 @@ def main(leve1, out_dir, subset_coords=None, upsample=True):
         
 
 
-
 if __name__ == '__main__':
     upsample = False
     subset_coords = (-35.5, 144.0, -37.0, 145.0)

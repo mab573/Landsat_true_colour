@@ -158,17 +158,17 @@ def generate_RTC_rasters(VZA_file,SZA_file,VA_file,SA_file,VZA_file_B8,SZA_file_
     #Write_NetCDF(path+'test_VZA.nc',VZA)
     #out_path = check_outdir(solar_file, out_file_base)
 
-    print 'Processing band 2 ...\n'
+    #print 'Processing band 2 ...\n'
     Lp_0, Eg_0, T_up,S= read_MODTRAN_lut_L8.Interp_LUT_stuff(SZA,VZA,RA, 1)
     file_name=out_file_base+'/Band2_L8_RTC_interpolated_values.nc'
     Write_RTC_NetCDF(file_name, Lp_0, Eg_0, T_up,S)
 
-    print 'Processing band 3 ...\n'
+    #print 'Processing band 3 ...\n'
     Lp_0, Eg_0, T_up,S= read_MODTRAN_lut_L8.Interp_LUT_stuff(SZA,VZA,RA, 2)
     file_name = out_file_base + '/Band3_L8_RTC_interpolated_values.nc'
     Write_RTC_NetCDF(file_name, Lp_0, Eg_0, T_up,S)
 
-    print 'Processing band 4 ...\n'
+    #print 'Processing band 4 ...\n'
     Lp_0, Eg_0, T_up,S= read_MODTRAN_lut_L8.Interp_LUT_stuff(SZA,VZA,RA, 3)
     file_name = out_file_base + '/Band4_L8_RTC_interpolated_values.nc'
     Write_RTC_NetCDF(file_name, Lp_0, Eg_0, T_up,S)
@@ -182,12 +182,12 @@ def generate_RTC_rasters(VZA_file,SZA_file,VA_file,SA_file,VZA_file_B8,SZA_file_
 
     #RA = abs(abs(abs(VA - SA)-180.0)-180.0)
 
-    print 'Processing band 8 ...\n'
+    #print 'Processing band 8 ...\n'
     Lp_0, Eg_0, T_up,S= read_MODTRAN_lut_L8.Interp_LUT_stuff(SZA,VZA,RA, 7)
     file_name = out_file_base + '/Band8_L8_RTC_interpolated_values.nc'
     Write_RTC_NetCDF(file_name, Lp_0, Eg_0, T_up,S)
 
-    print 'RTC band8 shape ',VZA.shape
+    #print 'RTC band8 shape ',VZA.shape
 
 
     return
