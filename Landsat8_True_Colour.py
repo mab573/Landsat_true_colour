@@ -327,12 +327,12 @@ LS_B9_sub=out_dir_top+'/'+basename+'_sub_B9.TIF'
 LS_B10_sub=out_dir_top+'/'+basename+'_sub_B10.TIF'
 LS_B11_sub=out_dir_top+'/'+basename+'_sub_B11.TIF'
 
-print ('Extracting landsat raster files from the archive file - if required\n\n\n')
+#print ('Extracting landsat raster files from the archive file - if required\n\n\n')
 # Untar and unzip L8 file, create an output directory
-out_dir=in_path+'/'+basename+'/simple_AC/'
-if not os.path.isfile(LS_B1):
-    os.system("tar -zxvf "+zip_file+" -C "+out_dir_top)
-    os.system("mkdir "+out_dir)
+#out_dir=in_path+'/'+basename+'/simple_AC/'
+#if not os.path.isfile(LS_B1):
+#    os.system("tar -zxvf "+zip_file+" -C "+out_dir_top)
+#    os.system("mkdir "+out_dir)
 
 try:
   bright
@@ -388,7 +388,7 @@ rad_offset=[]
 ref_scale=[]
 ref_offset=[]
 
-
+'''
 meta_file_lines=[]
 with open(LS_meta_file,'r') as f:
 
@@ -518,6 +518,7 @@ sec_split=ST_split[2].split('.')
 
 scene_time_float=float(ST_split[0])+float(ST_split[1])/60.0+float(sec_split[0])/3600.0
 scene_time="%.3f" % scene_time_float
+'''
 
 #### If the subset switch is used then get everything in the right format so that it can be 
 #### subsetted properly.
@@ -537,7 +538,8 @@ else:
   ulon = float(subset_vals[1])
   llat = float(subset_vals[2])
   llon = float(subset_vals[3])
-  
+ 
+  ''' 
   ## strip off the double quotes
   map_projection=map_projection[2:-2]
   elipsoid=elipsoid[2:-2]
@@ -546,8 +548,8 @@ else:
   p = Proj(proj=map_projection.lower(),zone=utm_zone,ellps=elipsoid)
   ul_E,ul_N = p(ulon, ulat)
   lr_E,lr_N = p(llon, llat)
-
-
+  '''
+'''
 for ii in range(0,len(rad_scale_tags)):
 
     new_list = [j for j in meta_file_lines if re.search(rad_scale_tags[ii], j)]
@@ -590,7 +592,7 @@ for ii in range(0,len(rad_scale_tags)):
     			
         thingy=item.split('=')
         ref_offset.append(float(thingy[1]))
-
+'''
 # Write tape5 files based on the information from the metadata file. This will be scene centre position, day of year of the scene, scene centre time of acquisition.
 # This will used fixed inputs for water vapour, aerosol, atmospheric pressure and so on.
 # This should be reasonably equivalent to CREFL proessing for MODIS.
@@ -645,11 +647,11 @@ if do_sub == 1:
 
     if do_pan == 1:
         ## Subset at 15 m resolution
-        data_dict=calc_sat_solar.main(zip_file, path, subset, upsample=True)
+        data_dict=calc_sat_solar.main(zip_file,in_path, subset, upsample=True)
 
     else:
         ## Subset at 30 m resolution
-        data_dict=calc_sat_solar.main(zip_file, path, subset, upsample=False)
+        data_dict=calc_sat_solar.main(zip_file, in_path, subset, upsample=False)
         #VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, subset, upsample=False)
 
 else:
@@ -657,11 +659,11 @@ else:
     if do_pan == 1:
         ## Full scene at 15 m resolution
         #VZA,SZA,VAA,SAA,B2,B3,B4,B8=calc_sat_solar.main(zip_file, path, upsample=True)
-        data_dict=calc_sat_solar.main(zip_file, path, upsample=True)
+        data_dict=calc_sat_solar.main(zip_file, in_path, upsample=True)
     else:
         ## Full scene at native resolution and we dont need the pan band
         #VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, upsample=False)
-        data_dict=calc_sat_solar.main(zip_file, path, upsample=False)
+        data_dict=calc_sat_solar.main(zip_file, in_path, upsample=False)
 
 
 print(data_dict)
