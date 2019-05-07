@@ -13,22 +13,26 @@ from calc_sat_solar import generate_rtc_raster
 
 from Simple_Pan_Sharpen import Simple_Pan_Sharpen as pan
 from Landsat8_atmospheric_correction import Landsat_ATCOR
+import ContEnh
 
 import numpy as np
 
 from PIL import Image
 
 
-MAX_REFL = 10000
+max_ref = 12000
+gamma = 2.0
 
 
 def gamma(ary,bright):
     ary_scaled=((ary / 255.0) ** (1.0 /bright))*255.0
     return ary_scaled
 
-def png_band(band):
-    return gamma(np.clip(band / np.max(band) * 255.0, 0, 255), 1.0)
-    
+def png_band(band,gamma,max_ref):
+
+    out_band = gamma(np.clip(band.astype(float)/max_ref.astype(float)*255.0, 0,255), gamma)
+    return out_band
+
 
 def atcor(rtc_data, radiance):
     Lp_0 = rtc_data['Lp_0']
@@ -37,7 +41,6 @@ def atcor(rtc_data, radiance):
     S = rtc_data['S']
     A = (np.pi*((radiance/10.0)-(Lp_0)))/((Eg_0)*T_up)
     return np.around(((A)/(1+(A*S)))*10000.0, decimals=0)
-
 
 @click.command()
 @click.option('--level1', type=click.Path(exists=True), required=True,
@@ -72,13 +75,13 @@ def main(level1, outdir, extent, sharpen, ac, cleanup):
 
     scale_offset_dict = get_band_scale_offset(glob(os.path.join(extracted, '*MTL.txt'))[0])
     data = get_data(extracted, extent, sharpen)
-    
+
     rtc_data = generate_rtc_raster(data['SATELLITE-VIEW']['data'], data['SOLAR-ZENITH']['data'],
                                    data['SATELLITE-AZIMUTH']['data'], data['SOLAR-AZIMUTH']['data'])
 
     radiance = normalize_data(data, scale_offset_dict)
-    
-    if ac: 
+
+if ac:
         rho_r = atcor(rtc_data['B4'], radiance['B4'])
         rho_g = atcor(rtc_data['B3'], radiance['B3'])
         rho_b = atcor(rtc_data['B2'], radiance['B2'])
@@ -87,20 +90,23 @@ def main(level1, outdir, extent, sharpen, ac, cleanup):
     if sharpen:
         visible_bands = [rho_b, rho_g, rho_r, rho_p]
         #visible_bands = pan(radiance['B2'], radiance['B3'], radiance['B4'], radiance['B8'])
-    else: 
+    else:
         visible_bands = [radiance['B2'], radiance['B3'], radiance['B4']]
         #visible_bands = [rho_b, rho_g, rho_r]
-       
-    png_bands = [png_band(band) for band in visible_bands]
-    
+
+    png_bands = [png_band(band,gamma,max_ref) for band in visible_bands]
+
     jr = Image.fromarray(png_bands[2].astype(np.uint8))
     jg = Image.fromarray(png_bands[1].astype(np.uint8))
     jb = Image.fromarray(png_bands[0].astype(np.uint8))
 
 
     imrgb = Image.merge('RGB', (jr, jg, jb ))
-    imrgb.save(os.path.join(extracted, 'corrected_sharpen_rgb.png'))
+    #contrast=ContEnh.Contrast(imrgb,c_mid)
+    #imrgb_en=contrast.enhce(c_enh)
+    #imrgb_en.save(out_image_name)
+    imrgb.save(os.path.join(extracted, 'Test.png'))
 
 
 if __name__ == '__main__':
-    main()
+
