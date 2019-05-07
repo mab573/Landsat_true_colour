@@ -162,8 +162,9 @@ def generate_rtc_raster(vza, sza, va, sa):
 
     for band in [2, 3, 4, 8]: 
         lp_0, eg_0, t_up, s = read_MODTRAN_lut_L8.Interp_LUT_stuff(sza, vza, ra, band - 1)
-        lut_dict['B{}'.format(band)]['Lp_O'] = lp_0 
-        lut_dict['B{}'.format(band)]['Eg_O'] = eg_0 
+        lut_dict['B{}'.format(band)] = {}
+        lut_dict['B{}'.format(band)]['Lp_0'] = lp_0 
+        lut_dict['B{}'.format(band)]['Eg_0'] = eg_0 
         lut_dict['B{}'.format(band)]['T_up'] = t_up
         lut_dict['B{}'.format(band)]['S'] = s
     
