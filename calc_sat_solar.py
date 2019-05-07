@@ -76,14 +76,11 @@ def unpack(tar_file, out_dir):
         return tar.extractall()
 
 
-def write_sat_solar(level1, out_dir, tle_path='/g/data/v10/eoancillarydata/sensor-specific', acq_parser_hint=''):
+def write_sat_solar(granule, acq, out_dir,
+                    tle_path='/g/data/v10/eoancillarydata/sensor-specific', acq_parser_hint=''):
     """
     This function will compute satellite solar (view and azimuth) angles using level 1 dataset.
     """
-    container = acquisitions(level1, acq_parser_hint)
- 
-    acq = (container.get_acquisitions(container.supported_groups[0], container.granules[0]))[0]
-    
     with tempfile.TemporaryDirectory() as tmp_dir:
         lat_lon_h5 = pjoin(tmp_dir, 'latitude_longitude.h5')
         sat_sol_h5 = pjoin(tmp_dir, 'satellite_solar.h5')
@@ -100,7 +97,7 @@ def write_sat_solar(level1, out_dir, tle_path='/g/data/v10/eoancillarydata/senso
             for band in SAT_SOLAR_BANDS: 
                 dset = dset_group[band]
                 geo_box = GriddedGeoBox.from_h5_dataset(dset)
-                out_name = pjoin(out_dir, '{}_{}.TIF'.format(container.granules[0], band))
+                out_name = pjoin(out_dir, '{}_{}.TIF'.format(granule, band))
                 write_img(dset, out_name, geobox=geo_box, options={}, nodata=dset.attrs.get('no_data_value'))
 
 
@@ -152,8 +149,9 @@ def get_grid_options(filename, subset_coords=None):
 
 def subset(file_path, grid_specs): 
     with rasterio.open(file_path) as src: 
-        with WarpedVRT(src, **grid_specs) as vrt: 
-            return {'data': vrt.read(), 'profile': vrt.profile}
+        with WarpedVRT(src, **grid_specs) as vrt:
+            data = vrt.read(1)
+            return {'data': data, 'profile': vrt.profile, 'shape': data.shape}
 
 
 def generate_rtc_raster(vza, sza, va, sa):
@@ -172,7 +170,7 @@ def generate_rtc_raster(vza, sza, va, sa):
     return lut_dict
 
     
-def get_data(level1, out_dir, subset_coords=None, upsample=True): 
+def get_data(out_dir, subset_coords=None, upsample=True): 
     
     tiff_files = [f for f in os.listdir(out_dir) if f.endswith('.TIF')]
     bands = LANDSAT_BANDS + SAT_SOLAR_BANDS
@@ -189,6 +187,13 @@ def get_data(level1, out_dir, subset_coords=None, upsample=True):
     return {bands[idx]: subset(file_path, grid_specs) for idx, file_path in  enumerate(file_paths)}
 
 
+def normalize_data(data, scale_offset_dict):
+    return {key: data[key]['data'] * scale_offset_dict['RADIANCE_MULT_BAND_{}'.format(key[1:])] + 
+                              scale_offset_dict['RADIANCE_ADD_BAND_{}'.format(key[1:])]
+            for key in data
+            if key.startswith('B')}
+
+
 def main(level1, out_dir, subset_coords=None, upsample=True): 
 
     #write_sat_solar(level1, out_dir)
@@ -199,7 +204,7 @@ def main(level1, out_dir, subset_coords=None, upsample=True):
     scale_offset_dict = get_band_scale_offset(mtl_file)
     print(scale_offset_dict)
         
-    all_data = get_data(level1, out_dir, subset_coords, upsample)
+    all_data = get_data(out_dir, subset_coords, upsample)
     #generate_rtc_raster(all_data['SATELLITE-VIEW']['data'][0], all_data['SOLAR-ZENITH']['data'][0],
     #                    all_data['SATELLITE-AZIMUTH']['data'][0], all_data['SOLAR-AZIMUTH']['data'][0])
     landsat_band_data = {key: all_data[key]['data'][0] * scale_offset_dict['RADIANCE_MULT_BAND_{}'.format(key[1:])] + 
