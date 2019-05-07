@@ -28,6 +28,8 @@ import logging
 from memory_profiler import profile 
 import time 
 
+import read_MODTRAN_lut_L8 
+
 _log = logging.getLogger(__name__)
 
 
@@ -36,6 +38,10 @@ LANDSAT_BANDS = ['B{}'.format(i) for i in range(2,5)]
 
 
 def get_band_scale_offset(mtl_file): 
+    """
+    Returns the scale and offset factors from mtl file for reflectance 
+    and radiance for each bands. 
+    """
 
     rad_scale_tags=['RADIANCE_MULT_BAND_{}'.format(i) for i in range(1, 12)]
     rad_offset_tags = ['RADIANCE_ADD_BAND_{}'.format(i) for i in range(1, 12)] 
@@ -44,7 +50,6 @@ def get_band_scale_offset(mtl_file):
     
     tags = rad_scale_tags + rad_offset_tags + ref_scale_tags + ref_offset_tags
 
-    meta_file_lines = None
     with open(mtl_file, 'r') as fid:
         meta_file_lines = fid.readlines()
     
@@ -52,6 +57,7 @@ def get_band_scale_offset(mtl_file):
                       for line in meta_file_lines for tag in tags  if fnmatch.fnmatch(line, '*{}*'.format(tag))}
    
     return meta_file_dict   
+
 
 def unpack(tar_file, out_dir): 
     """
@@ -140,24 +146,35 @@ def get_grid_options(filename, subset_coords=None):
                     'crs': raster.crs, 
                     'height': data.shape[1], 
                     'width': data.shape[0], 
-                    'nodata': raster.nodata
+   'nodata': raster.nodata
                     }
+
 
 def subset(file_path, grid_specs): 
     with rasterio.open(file_path) as src: 
         with WarpedVRT(src, **grid_specs) as vrt: 
             return {'data': vrt.read(), 'profile': vrt.profile}
-@profile 
-def main(leve1, out_dir, subset_coords=None, upsample=True): 
-    #write_sat_solar(leve1, out_dir)
-    #unpack(level1, out_dir)
+
+
+def generate_rtc_raster(vza, sza, va, sa):
+
+    ra = abs(abs(abs(va - sa) - 180.0) - 180.0)
     
-    tiff_files = [f for f in os.listdir(out_dir)]
-    mtl_file = pjoin(out_dir, fnmatch.filter(tiff_files, '*MTL.txt')[0])
-    print(mtl_file)
-    scale_offset_dict = get_band_scale_offset(mtl_file)
-    print(scale_offset_dict)
-    exit()
+    lut_dict = {}
+
+    for band in [2, 3, 4, 8]: 
+        lp_0, eg_0, t_up, s = read_MODTRAN_lut_L8.Interp_LUT_stuff(sza, vza, ra, band - 1)
+        lut_dict['B{}'.format(band)]['Lp_O'] = lp_0 
+        lut_dict['B{}'.format(band)]['Eg_O'] = eg_0 
+        lut_dict['B{}'.format(band)]['T_up'] = t_up
+        lut_dict['B{}'.format(band)]['S'] = s
+    
+    return lut_dict
+
+    
+def get_data(level1, out_dir, subset_coords=None, upsample=True): 
+    
+    tiff_files = [f for f in os.listdir(out_dir) if f.endswith('.TIF')]
     bands = LANDSAT_BANDS + SAT_SOLAR_BANDS
         
     if upsample:
@@ -169,22 +186,37 @@ def main(leve1, out_dir, subset_coords=None, upsample=True):
     grid_specs = get_grid_options(grid_spec_file, subset_coords)
     file_paths = [pjoin(out_dir, fnmatch.filter(tiff_files, '*{}.TIF'.format(band))[0]) for band in bands]
     
-    return {basename(file_path): subset(file_path, grid_specs) for file_path in file_paths}
-       
-        
+    return {bands[idx]: subset(file_path, grid_specs) for idx, file_path in  enumerate(file_paths)}
 
+
+def main(level1, out_dir, subset_coords=None, upsample=True): 
+
+    #write_sat_solar(level1, out_dir)
+    #unpack(level1, out_dir)
+    
+    files = [f for f in os.listdir(out_dir)]
+    mtl_file = pjoin(out_dir, fnmatch.filter(files, '*MTL.txt')[0])
+    scale_offset_dict = get_band_scale_offset(mtl_file)
+    print(scale_offset_dict)
+        
+    all_data = get_data(level1, out_dir, subset_coords, upsample)
+    #generate_rtc_raster(all_data['SATELLITE-VIEW']['data'][0], all_data['SOLAR-ZENITH']['data'][0],
+    #                    all_data['SATELLITE-AZIMUTH']['data'][0], all_data['SOLAR-AZIMUTH']['data'][0])
+    landsat_band_data = {key: all_data[key]['data'][0] * scale_offset_dict['RADIANCE_MULT_BAND_{}'.format(key[1:])] + 
+                              scale_offset_dict['RADIANCE_ADD_BAND_{}'.format(key[1:])] for key in all_data.keys() if fnmatch.fnmatch(key, '*B*')}
+
+    
 
 if __name__ == '__main__':
-    upsample = False
-    subset_coords = (-35.5, 144.0, -37.0, 145.0)
-    level1 = '/g/data/da82/AODH/USGS/L1/Landsat/C1/093_085/LC80930852019051/LC08_L1TP_093085_20190220_20190222_01_T1.tar'
+    upsample = True
+    subset_coords = (-36.5, 144.5, -37.0, 145.0)
+    level1 = '//data/da82/AODH/USGS/L1/Landsat/C1/093_085/LC80930852019051/LC08_L1TP_093085_20190220_20190222_01_T1.tar'
     out_dir = '/g/data/u46/users/pd1813/Landsat_true_colour/test'
     start_time = time.clock()
-    data = main(level1, out_dir, subset_coords, upsample)
     print(time.clock() - start_time)
-    for key in data.keys():
-        print(data[key]['profile']['transform'])
-
+    main(level1, out_dir, subset_coords, upsample)
+    #for key in data.keys():
+    #    print(data[key]['data'].shape)
 
 
 
