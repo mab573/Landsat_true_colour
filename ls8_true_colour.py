@@ -20,18 +20,14 @@ import numpy as np
 from PIL import Image
 
 
-max_ref = 12000
-gamma = 2.0
+MAX_REF = 12000
 
 
-def gamma(ary,bright):
-    ary_scaled=((ary / 255.0) ** (1.0 /bright))*255.0
-    return ary_scaled
+def gamma(ary, brightness):
+    return ((ary / 255.0) ** (1.0 / brightness)) * 255.0
 
-def png_band(band,gamma,max_ref):
-
-    out_band = gamma(np.clip(band.astype(float)/max_ref.astype(float)*255.0, 0,255), gamma)
-    return out_band
+def png_band(band, brightness):
+    return gamma(np.clip(band.astype(float) / float(MAX_REF) * 255.0, 0, 255), brightness)
 
 
 def atcor(rtc_data, radiance):
@@ -52,9 +48,13 @@ def atcor(rtc_data, radiance):
 @click.option('--sharpen', is_flag=True, default=False,
               help='whether to pan sharpen')
 @click.option('--ac', default=False)
+@click.option('--brightness', type=float, default=2.0, help='overall brightness factor')
 @click.option('--cleanup', is_flag=True, default=False,
               help='whether to clean up working directory')
-def main(level1, outdir, extent, sharpen, ac, cleanup):
+def main(level1, outdir, extent, sharpen, ac, brightness, cleanup):
+    VISIBLE_BANDS = ['B2', 'B3', 'B4']
+    PAN_BAND = 'B8'
+   
     acqs = acquisitions(level1)
     assert len(acqs.granules) == 1, 'cannot handle multi-granule datasets'
     granule = acqs.granules[0]
@@ -81,32 +81,36 @@ def main(level1, outdir, extent, sharpen, ac, cleanup):
 
     radiance = normalize_data(data, scale_offset_dict)
 
-if ac:
-        rho_r = atcor(rtc_data['B4'], radiance['B4'])
-        rho_g = atcor(rtc_data['B3'], radiance['B3'])
-        rho_b = atcor(rtc_data['B2'], radiance['B2'])
-        rho_p = atcor(rtc_data['B8'], radiance['B8'])
+    if sharpen:
+        bands_to_process = VISIBLE_BANDS + [PAN_BAND]
+    else:
+        bands_to_process = VISIBLE_BANDS
+
+    if ac:
+        rho = {key: atcor(rtc_data[key], radiance[key])
+               for key in bands_to_process}
+    else:
+        rho = {key: radiance[key] for key in bands_to_process}
 
     if sharpen:
-        visible_bands = [rho_b, rho_g, rho_r, rho_p]
-        #visible_bands = pan(radiance['B2'], radiance['B3'], radiance['B4'], radiance['B8'])
+        sharpened = pan(*[rho[band] for band in bands_to_process])
     else:
-        visible_bands = [radiance['B2'], radiance['B3'], radiance['B4']]
-        #visible_bands = [rho_b, rho_g, rho_r]
+        sharpened = {'blue': rho['B2'], 'green': rho['B3'], 'red': rho['B4']}
 
-    png_bands = [png_band(band,gamma,max_ref) for band in visible_bands]
+    png_bands = {band: png_band(sharpened[band], brightness) for band in ['blue', 'green', 'red']}
 
-    jr = Image.fromarray(png_bands[2].astype(np.uint8))
-    jg = Image.fromarray(png_bands[1].astype(np.uint8))
-    jb = Image.fromarray(png_bands[0].astype(np.uint8))
+
+    jr = Image.fromarray(png_bands['red'].astype(np.uint8))
+    jg = Image.fromarray(png_bands['green'].astype(np.uint8))
+    jb = Image.fromarray(png_bands['blue'].astype(np.uint8))
 
 
     imrgb = Image.merge('RGB', (jr, jg, jb ))
     #contrast=ContEnh.Contrast(imrgb,c_mid)
     #imrgb_en=contrast.enhce(c_enh)
     #imrgb_en.save(out_image_name)
-    imrgb.save(os.path.join(extracted, 'Test.png'))
+    imrgb.save(os.path.join(extracted, 'true_color.png'))
 
 
 if __name__ == '__main__':
-
+    main()

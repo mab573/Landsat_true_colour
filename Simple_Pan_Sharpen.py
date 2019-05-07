@@ -92,5 +92,5 @@ def Simple_Pan_Sharpen(blue_band, green_band, red_band, pan_band):
     whereAreNaNs = np.isnan(new_red_band_pan);
     new_red_band_pan[whereAreNaNs] = 0;
 
-    return new_blue_band_pan, new_green_band_pan, new_red_band_pan
+    return {'blue': new_blue_band_pan, 'green': new_green_band_pan, 'red': new_red_band_pan}
 
