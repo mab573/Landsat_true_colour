@@ -645,23 +645,26 @@ if do_sub == 1:
 
     if do_pan == 1:
         ## Subset at 15 m resolution
-        VZA,SZA,VAA,SAA,B2,B3,B4,B8=calc_sat_solar.main(zip_file, path, subset, upsample=True)
+        data_dict=calc_sat_solar.main(zip_file, path, subset, upsample=True)
 
     else:
         ## Subset at 30 m resolution
-        VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, subset, upsample=False)
+        data_dict=calc_sat_solar.main(zip_file, path, subset, upsample=False)
+        #VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, subset, upsample=False)
 
 else:
 
     if do_pan == 1:
         ## Full scene at 15 m resolution
-        VZA,SZA,VAA,SAA,B2,B3,B4,B8=calc_sat_solar.main(zip_file, path, upsample=True)
-
+        #VZA,SZA,VAA,SAA,B2,B3,B4,B8=calc_sat_solar.main(zip_file, path, upsample=True)
+        data_dict=calc_sat_solar.main(zip_file, path, upsample=True)
     else:
         ## Full scene at native resolution and we dont need the pan band
-        VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, upsample=False)
+        #VZA,SZA,VAA,SAA,B2,B3,B4=calc_sat_solar.main(zip_file, path, upsample=False)
+        data_dict=calc_sat_solar.main(zip_file, path, upsample=False)
 
 
+print(data_dict)
 sys.exit()
 
 ############ Generate RTC interpolated Raster files ############
