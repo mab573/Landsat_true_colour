@@ -202,17 +202,10 @@ def main(level1, out_dir, subset_coords=None, upsample=True):
     all_data = get_data(level1, out_dir, subset_coords, upsample)
     #generate_rtc_raster(all_data['SATELLITE-VIEW']['data'][0], all_data['SOLAR-ZENITH']['data'][0],
     #                    all_data['SATELLITE-AZIMUTH']['data'][0], all_data['SOLAR-AZIMUTH']['data'][0])
-    key = 'B2'
-    print(scale_offset_dict['RADIANCE_MULT_BAND_{}'.format(key[1:])])
-    print(scale_offset_dict['RADIANCE_ADD_BAND_{}'.format(key[1:])])
     landsat_band_data = {key: all_data[key]['data'][0] * scale_offset_dict['RADIANCE_MULT_BAND_{}'.format(key[1:])] + 
                               scale_offset_dict['RADIANCE_ADD_BAND_{}'.format(key[1:])] for key in all_data.keys() if fnmatch.fnmatch(key, '*B*')}
 
     
-
-    for k in data.keys(): 
-        print(k)
-
 
 if __name__ == '__main__':
     upsample = True
