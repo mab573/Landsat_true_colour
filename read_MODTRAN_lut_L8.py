@@ -41,8 +41,8 @@ def Interp_LUT_stuff(sol_zen, sen_zen, rel_az, band):
         """
         Read the MODTRAN Lp LUT
         """
-        with open(pickleFile, "r") as f:
-            d = pickle.load(f)
+        with open(pickleFile, "rb") as f:
+            d = pickle.load(f, encoding='latin1')
 
         ## Pickled these as string lists which was a bit of a mistake.
         solin = d['sza']
@@ -59,8 +59,8 @@ def Interp_LUT_stuff(sol_zen, sen_zen, rel_az, band):
         """
         Read the MODTRAN Lp LUT
         """
-        with open(pickleFile, "r") as f:
-            d = pickle.load(f)
+        with open(pickleFile, "rb") as f:
+            d = pickle.load(f, encoding='latin1')
 
         ## Pickled these as string lists which was a bit of a mistake.
         solin = d['sza']
@@ -77,8 +77,8 @@ def Interp_LUT_stuff(sol_zen, sen_zen, rel_az, band):
         """
         Read the MODTRAN Lp LUT
         """
-        with open(pickleFile, "r") as f:
-            d = pickle.load(f)
+        with open(pickleFile, "rb") as f:
+            d = pickle.load(f, encoding='latin1')
 
         ## Pickled these as string lists which was a bit of a mistake.
         solin = d['sza']
@@ -95,8 +95,8 @@ def Interp_LUT_stuff(sol_zen, sen_zen, rel_az, band):
         """
         Read the MODTRAN Lp LUT
         """
-        with open(pickleFile, "r") as f:
-            d = pickle.load(f)
+        with open(pickleFile, "rb") as f:
+            d = pickle.load(f, encoding='latin1')
 
         ## Pickled these as string lists which was a bit of a mistake.
         solin = d['sza']
@@ -120,7 +120,7 @@ def Interp_LUT_stuff(sol_zen, sen_zen, rel_az, band):
         return v
 
     ## LUT with Landsat8 OLI specific bands (all of them)
-    LUT_path='/home/573/mab573/Landsat/lookup_tables_code/'
+    LUT_path=''
     pickleFile_S=LUT_path+'Landsat-08_S.dat'
     pickleFile_T_up =LUT_path+'Landsat-08_T_up.dat'
     pickleFile_Eg_0 =LUT_path+'Landsat-08_Eg_0.dat'
