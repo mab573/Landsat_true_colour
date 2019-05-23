@@ -21,7 +21,14 @@ from PIL import Image
 
 
 MAX_REF = 12000
-
+# Adjust the contrast and sharpeness
+c_enh=2.3
+#This specifies the midpoint of the contrast enhancement
+#I have pulled out and hacked the PIL contrast enhancement so I 
+#can set this to be independant of the actual image. Previously this
+#is set as a mean value for each image.
+c_mid=191
+s_enh=1.5
 
 def gamma(ary, brightness):
     return ((ary / 255.0) ** (1.0 / brightness)) * 255.0
@@ -35,6 +42,7 @@ def atcor(rtc_data, radiance):
     Eg_0 = rtc_data['Eg_0']
     T_up = rtc_data['T_up']
     S = rtc_data['S']
+    print('Doing atcor')
     A = (np.pi*((radiance/10.0)-(Lp_0)))/((Eg_0)*T_up)
     return np.around(((A)/(1+(A*S)))*10000.0, decimals=0)
 
@@ -106,10 +114,10 @@ def main(level1, outdir, extent, sharpen, ac, brightness, cleanup):
 
 
     imrgb = Image.merge('RGB', (jr, jg, jb ))
-    #contrast=ContEnh.Contrast(imrgb,c_mid)
-    #imrgb_en=contrast.enhce(c_enh)
+    contrast=ContEnh.Contrast(imrgb,c_mid)
+    imrgb_en=contrast.enhce(c_enh)
     #imrgb_en.save(out_image_name)
-    imrgb.save(os.path.join(extracted, 'true_color.png'))
+    imrgb_en.save(os.path.join(extracted, 'true_color.png'))
 
 
 if __name__ == '__main__':

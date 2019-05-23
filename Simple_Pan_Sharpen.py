@@ -77,10 +77,18 @@ def Simple_Pan_Sharpen(blue_band, green_band, red_band, pan_band):
 	
 
     ## Pan sharpening method from (https://github.com/gina-alaska/dans-gdal-scripts/wiki/Gdal_landsat_pansharp)
+    # Original
+    #ratio_b=0.25
+    #ratio_g=0.23
+    #ratio_r=0.52
 
-    new_blue_band_pan=new_blue_band*(pan_band/((new_blue_band*0.25) + (new_green_band*0.23) + (new_red_band*0.52)))
-    new_green_band_pan=new_green_band*(pan_band/((new_blue_band*0.25) + (new_green_band*0.23) + (new_red_band*0.52)))
-    new_red_band_pan=new_red_band*(pan_band/((new_blue_band*0.25) + (new_green_band*0.23) + (new_red_band*0.52)))	
+    ratio_b=0.25
+    ratio_g=0.25
+    ratio_r=0.25
+
+    new_blue_band_pan=new_blue_band*(pan_band/((new_blue_band*ratio_b) + (new_green_band*ratio_g) + (new_red_band*ratio_r)))
+    new_green_band_pan=new_green_band*(pan_band/((new_blue_band*ratio_b) + (new_green_band*ratio_g) + (new_red_band*ratio_r)))
+    new_red_band_pan=new_red_band*(pan_band/((new_blue_band*ratio_b) + (new_green_band*ratio_g) + (new_red_band*ratio_r)))	
 
     # Once again remove any NaN values incase there is a divide by zero or something going on here
     whereAreNaNs = np.isnan(new_blue_band_pan);

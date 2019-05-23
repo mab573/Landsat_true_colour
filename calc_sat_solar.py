@@ -1,7 +1,7 @@
 #!/usr/bin/env python 
 
 import numpy as np
-
+import sys
 import rasterio 
 from rasterio.warp import transform_bounds, reproject, Resampling
 from rasterio.crs import CRS
@@ -117,7 +117,7 @@ def get_grid_options(filename, subset_coords=None):
             wgs = CRS.from_epsg(4326)
             left, bottom, right, top = transform_bounds(wgs, raster.crs,
                                                         ul_lon, lr_lat, lr_lon, ul_lat)
-            
+           
             start = ~raster.transform * (left, top)
             finish = ~raster.transform * (right, bottom)
 
@@ -133,7 +133,10 @@ def get_grid_options(filename, subset_coords=None):
             if finish[1] > raster.shape[1]:
                 finish[1] = raster.shape[1]
 
+            # This window starts in the right place but the dimensions seem to be reversed (width and height)
+            # i.e changing lat changes lon in the output
             window = ((start[0], finish[0]), (start[1], finish[1]))
+            
 
             data = raster.read(1, window=window)
             affine = rasterio.windows.transform(window, raster.transform)
@@ -141,8 +144,8 @@ def get_grid_options(filename, subset_coords=None):
             return {'resampling': Resampling.nearest,
                     'transform': affine,
                     'crs': raster.crs, 
-                    'height': data.shape[1], 
-                    'width': data.shape[0], 
+                    'height': data.shape[0], 
+                    'width': data.shape[1], 
    'nodata': raster.nodata
                     }
 
