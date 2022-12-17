@@ -44,12 +44,50 @@ def unpack(tar_file, out_dir):
         with tarfile.open(tar_file, "r:gz") as tar:
             if out_dir:
                 return tar.extractall(out_dir)
-            return tar.extractall()
+                   def is_within_directory(directory, target):
+                       
+                       abs_directory = os.path.abspath(directory)
+                       abs_target = os.path.abspath(target)
+                   
+                       prefix = os.path.commonprefix([abs_directory, abs_target])
+                       
+                       return prefix == abs_directory
+                   
+                   def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+                   
+                       for member in tar.getmembers():
+                           member_path = os.path.join(path, member.name)
+                           if not is_within_directory(path, member_path):
+                               raise Exception("Attempted Path Traversal in Tar File")
+                   
+                       tar.extractall(path, members, numeric_owner=numeric_owner) 
+                       
+                   
+                   safe_extract(tar)
 
     with  tarfile.open(tar_file, "r:") as tar:
         if out_dir:
             return tar.extractall(out_dir)
-        return tar.extractall()
+               def is_within_directory(directory, target):
+                   
+                   abs_directory = os.path.abspath(directory)
+                   abs_target = os.path.abspath(target)
+               
+                   prefix = os.path.commonprefix([abs_directory, abs_target])
+                   
+                   return prefix == abs_directory
+               
+               def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+               
+                   for member in tar.getmembers():
+                       member_path = os.path.join(path, member.name)
+                       if not is_within_directory(path, member_path):
+                           raise Exception("Attempted Path Traversal in Tar File")
+               
+                   tar.extractall(path, members, numeric_owner=numeric_owner) 
+                   
+               
+               safe_extract(tar)
 
 
 def write_sat_solar(level1, out_dir, tle_path='/g/data/v10/eoancillarydata/sensor-specific', acq_parser_hint=''):
